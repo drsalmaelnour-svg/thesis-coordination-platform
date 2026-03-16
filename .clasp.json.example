@@ -1,0 +1,29 @@
+{
+  "scriptId": "YOUR_SCRIPT_ID_HERE",
+  "rootDir": "./src",
+  "fileExtension": "js",
+  "filePushOrder": [
+    "server/00_Config.gs",
+    "server/01_Utilities.gs",
+    "server/02_AuditLog.gs",
+    "server/03_AccessControl.gs",
+    "server/04_UserContext.gs",
+    "server/05_SheetSetup.gs",
+    "server/06_StudentManager.gs",
+    "server/07_DataService.gs",
+    "server/08_MilestoneService.gs",
+    "server/09_RiskEngine.gs",
+    "server/10_FormHandler.gs",
+    "server/11_AnalyticsService.gs",
+    "server/12_ReportService.gs",
+    "server/13_AutomationService.gs",
+    "server/14_WebApp.gs",
+    "server/15_Code.gs",
+    "client/Dashboard.html",
+    "client/Stylesheet.html",
+    "client/JavaScript.html",
+    "client/ReflectionForm.html",
+    "client/SupervisorPortal.html",
+    "client/Reports.html"
+  ]
+}

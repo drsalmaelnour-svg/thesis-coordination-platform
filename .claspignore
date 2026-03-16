@@ -1,0 +1,29 @@
+# Files clasp should NOT push to Apps Script
+docs/**
+*.md
+README.md
+CHANGELOG.md
+DEPLOYMENT.md
+DEVELOPMENT.md
+LICENSE
+
+# Configuration templates
+config/**
+*.json
+!appsscript.json
+
+# Shell scripts
+scripts/**
+*.sh
+
+# GitHub
+.github/**
+
+# Root project files
+.gitignore
+.claspignore
+.clasp.json.example
+
+# OS
+.DS_Store
+Thumbs.db
