@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Supervisor Portal</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --navy:#0B1F3A;--navy-m:#163660;--teal:#0D9488;--teal-d:#0B7A75;--teal-l:#CCFBF1;
+      --surface:#F1F4F9;--card:#FFFFFF;--muted:#F8FAFC;
+      --border:#E5E7EB;--border-s:#D1D5DB;--focus:#0D9488;
+      --text:#111827;--text-s:#4B5563;--text-m:#9CA3AF;
+      --green-bg:#F0FDF4;--green-b:#BBF7D0;--green:#15803D;
+      --amber-bg:#FFFBEB;--amber-b:#FEF3C7;--amber:#B45309;
+      --red-bg:#FFF5F5;--red-b:#FEE2E2;--red:#B91C1C;
+      --blue-bg:#EFF6FF;--blue-b:#BFDBFE;--blue:#1D4ED8;
+      --radius-sm:6px;--radius-md:8px;--radius-lg:12px;--radius-xl:16px;
+      --font:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;
+      --shadow-sm:0 1px 3px rgba(0,0,0,0.04),0 2px 6px rgba(0,0,0,0.04);
+      --shadow-md:0 4px 14px rgba(0,0,0,0.08);
+    }
+    html{font-size:14px;-webkit-font-smoothing:antialiased}
+    body{font-family:var(--font);background:var(--surface);color:var(--text);min-height:100vh}
+
+    /* ── Header ── */
+    .portal-header{background:var(--navy);padding:0 28px;height:60px;
+      display:flex;align-items:center;gap:14px}
+    .portal-header-logo{width:30px;height:30px;background:var(--teal);border-radius:6px;
+      display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .portal-header-logo svg{width:15px;height:15px;color:#fff}
+    .portal-header-title{font-size:14px;font-weight:600;color:#fff;flex:1}
+    .portal-header-sub{font-size:12px;color:rgba(255,255,255,.45)}
+
+    .portal-body{padding:24px 28px;max-width:960px;margin:0 auto}
+
+    /* ── Login ── */
+    .login-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-xl);
+      box-shadow:var(--shadow-sm);padding:32px;max-width:420px;margin:48px auto 0}
+    .login-icon{width:48px;height:48px;background:var(--teal-l);border-radius:var(--radius-lg);
+      display:flex;align-items:center;justify-content:center;margin-bottom:18px}
+    .login-icon svg{width:22px;height:22px;color:var(--teal-d)}
+    .login-title{font-size:18px;font-weight:700;color:var(--navy);margin-bottom:6px}
+    .login-sub{font-size:13px;color:var(--text-m);margin-bottom:22px;line-height:1.5}
+    .form-group{margin-bottom:16px}
+    .form-label{display:block;font-size:11px;font-weight:700;color:var(--text-s);
+      text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+    .form-input{display:block;width:100%;height:40px;border:1px solid var(--border-s);
+      border-radius:var(--radius-md);padding:0 12px;font-size:14px;font-family:var(--font);
+      color:var(--text);background:var(--card);outline:none;transition:border-color .15s,box-shadow .15s}
+    .form-input:focus{border-color:var(--focus);box-shadow:0 0 0 3px rgba(13,148,136,.1)}
+    .form-select{display:block;width:100%;height:40px;border:1px solid var(--border-s);
+      border-radius:var(--radius-md);padding:0 12px;font-size:14px;font-family:var(--font);
+      color:var(--text);background:var(--card);outline:none;-webkit-appearance:none;
+      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%239CA3AF' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+      background-repeat:no-repeat;background-position:right 10px center;
+      transition:border-color .15s}
+    .form-select:focus{border-color:var(--focus)}
+    .form-textarea{display:block;width:100%;border:1px solid var(--border-s);border-radius:var(--radius-md);
+      padding:10px 12px;font-size:14px;font-family:var(--font);color:var(--text);
+      background:var(--card);resize:vertical;min-height:80px;outline:none;
+      transition:border-color .15s,box-shadow .15s}
+    .form-textarea:focus{border-color:var(--focus);box-shadow:0 0 0 3px rgba(13,148,136,.1)}
+    .form-textarea::placeholder,.form-input::placeholder{color:var(--text-m)}
+    .primary-btn{display:flex;align-items:center;justify-content:center;gap:7px;width:100%;height:42px;
+      background:var(--teal);border:none;border-radius:var(--radius-md);color:#fff;font-size:14px;
+      font-weight:600;font-family:var(--font);cursor:pointer;transition:background .15s}
+    .primary-btn:hover{background:var(--teal-d)}
+    .primary-btn:disabled{opacity:.6;cursor:not-allowed}
+    .btn{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 13px;
+      border-radius:var(--radius-sm);font-size:12.5px;font-weight:500;font-family:var(--font);
+      cursor:pointer;border:1px solid transparent;transition:background .12s;white-space:nowrap}
+    .btn:active{transform:scale(.97)}
+    .btn svg{width:12px;height:12px}
+    .btn-primary{background:var(--teal);color:#fff;border-color:var(--teal-d)}
+    .btn-primary:hover{background:var(--teal-d)}
+    .btn-secondary{background:var(--card);color:var(--text-s);border-color:var(--border-s);box-shadow:var(--shadow-sm)}
+    .btn-secondary:hover{background:var(--muted);color:var(--text)}
+
+    /* ── Dashboard ── */
+    .sp-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:22px;gap:14px;flex-wrap:wrap}
+    .sp-greeting{font-size:20px;font-weight:700;color:var(--navy)}
+    .sp-greeting-sub{font-size:13px;color:var(--text-m);margin-top:3px}
+    .students-grid{display:flex;flex-direction:column;gap:14px}
+    .student-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);
+      box-shadow:var(--shadow-sm);overflow:hidden;transition:box-shadow .15s}
+    .student-card:hover{box-shadow:var(--shadow-md)}
+    .sc-header{display:flex;align-items:center;gap:12px;padding:16px 18px;cursor:pointer;user-select:none}
+    .sc-avatar{width:38px;height:38px;border-radius:50%;background:var(--navy);
+      display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;
+      color:#B8D9F0;flex-shrink:0}
+    .sc-name{font-size:14px;font-weight:600;color:var(--text);line-height:1.3;flex:1}
+    .sc-reg{font-size:11px;color:var(--text-m);margin-top:1px;font-family:monospace}
+    .sc-chevron{color:var(--text-m);transition:transform .18s;flex-shrink:0}
+    .sc-chevron.open{transform:rotate(180deg)}
+    .sc-chevron svg{width:14px;height:14px}
+    .sc-progress{padding:0 18px 16px;display:flex;align-items:center;gap:10px}
+    .pbar{flex:1;height:5px;background:var(--border);border-radius:999px;overflow:hidden}
+    .pbar-fill{height:100%;border-radius:999px}
+    .pbar-fill.pl{background:var(--red)}.pbar-fill.pm{background:var(--amber)}
+    .pbar-fill.ph{background:var(--teal)}.pbar-fill.pd{background:var(--green)}
+    .pbar-pct{font-size:12px;color:var(--text-m);white-space:nowrap}
+
+    /* Expanded student body */
+    .sc-body{display:none;border-top:1px solid var(--border);padding:16px 18px}
+    .sc-body.open{display:block}
+    .ms-list{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}
+    .ms-item{display:flex;align-items:center;gap:9px;padding:8px 10px;
+      background:var(--muted);border-radius:var(--radius-md);border:1px solid var(--border)}
+    .ms-item-num{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+      font-size:11px;font-weight:700;flex-shrink:0}
+    .ms-item.s-done     .ms-item-num{background:var(--green-bg);color:var(--green)}
+    .ms-item.s-active   .ms-item-num{background:var(--blue-bg);color:var(--blue)}
+    .ms-item.s-pending  .ms-item-num{background:var(--border);color:var(--text-m)}
+    .ms-item.s-overdue  .ms-item-num{background:var(--red-bg);color:var(--red)}
+    .ms-item-name{flex:1;font-size:13px;font-weight:500;color:var(--text)}
+    .ms-item-date{font-size:11px;color:var(--text-m)}
+    .chip{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600}
+    .ch-done{background:var(--green-bg);color:var(--green)}
+    .ch-active{background:var(--blue-bg);color:var(--blue)}
+    .ch-pending{background:#F3F4F6;color:#6B7280}
+    .ch-overdue{background:var(--red-bg);color:var(--red)}
+    .ch-risk{background:var(--red-bg);color:var(--red)}
+    .ch-mon{background:var(--amber-bg);color:var(--amber)}
+    .ch-on{background:var(--green-bg);color:var(--green)}
+
+    .feedback-btn-row{display:flex;gap:8px;flex-wrap:wrap}
+
+    /* Feedback form inside card */
+    .feedback-form{background:var(--muted);border:1px solid var(--border);border-radius:var(--radius-lg);
+      padding:18px;margin-top:12px;display:none}
+    .feedback-form.open{display:block}
+    .feedback-form-title{font-size:13px;font-weight:600;color:var(--navy);margin-bottom:14px}
+    .feedback-fg{margin-bottom:12px}
+    .feedback-fg:last-of-type{margin-bottom:0}
+    .feedback-fg .form-label{margin-bottom:5px}
+
+    /* Banners */
+    .banner{border-radius:var(--radius-md);padding:11px 14px;font-size:13px;
+      display:flex;align-items:flex-start;gap:9px;margin-bottom:14px;line-height:1.5}
+    .banner svg{width:14px;height:14px;flex-shrink:0;margin-top:1px}
+    .b-error{background:var(--red-bg);border:1px solid var(--red-b);color:var(--red)}
+    .b-success{background:var(--green-bg);border:1px solid var(--green-b);color:var(--green)}
+    .b-info{background:var(--blue-bg);border:1px solid var(--blue-b);color:var(--blue)}
+
+    .spinner{width:18px;height:18px;border:2px solid rgba(255,255,255,.35);
+      border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;display:inline-block}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    .footer-note{text-align:center;font-size:12px;color:var(--text-m);padding:24px 0 32px;line-height:1.6}
+  </style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="portal-header">
+  <div class="portal-header-logo">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+  </div>
+  <div>
+    <div class="portal-header-title">Supervisor Portal</div>
+    <div class="portal-header-sub" id="hdr-prog">MSc Medical Laboratory Science</div>
+  </div>
+</div>
+
+<!-- Body -->
+<div class="portal-body" id="portal-body">
+
+  <!-- LOGIN STATE -->
+  <div id="state-login">
+    <div class="login-card">
+      <div class="login-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      </div>
+      <div class="login-title">Supervisor sign-in</div>
+      <div class="login-sub">Enter your GMU email address to view your assigned students and submit milestone feedback.</div>
+      <div id="login-banner" style="display:none"></div>
+      <div class="form-group">
+        <label class="form-label">Email address</label>
+        <input class="form-input" type="email" id="sup-email" placeholder="supervisor@gmu.ac.ae" autocomplete="email">
+      </div>
+      <button class="primary-btn" id="login-btn" onclick="loadPortal()">
+        View my students
+      </button>
+    </div>
+  </div>
+
+  <!-- DASHBOARD STATE -->
+  <div id="state-dashboard" style="display:none">
+    <div class="sp-header">
+      <div>
+        <div class="sp-greeting" id="dash-greeting">Welcome back</div>
+        <div class="sp-greeting-sub" id="dash-sub">Loading your students…</div>
+      </div>
+      <button class="btn btn-secondary" onclick="signOut()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Sign out
+      </button>
+    </div>
+    <div id="global-banner" style="display:none"></div>
+    <div class="students-grid" id="students-grid"></div>
+  </div>
+
+</div>
+
+<div class="footer-note">
+  <strong>GMU Thesis Coordination System</strong> · Supervisor Portal<br>
+  This portal is for supervisors only. Students should use the reflection submission form.
+</div>
+
+<script>
+const SV = { email: null, name: null, students: [] };
+
+function loadPortal() {
+  const email = document.getElementById('sup-email').value.trim();
+  if (!email) { showBanner('login-banner', 'error', 'Please enter your email address.'); return; }
+
+  const btn = document.getElementById('login-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>';
+
+  google.script.run
+    .withSuccessHandler(res => {
+      btn.disabled = false;
+      btn.textContent = 'View my students';
+      if (!res.success) { showBanner('login-banner', 'error', res.message); return; }
+
+      SV.email    = email;
+      SV.name     = res.supervisorName;
+      SV.students = res.students;
+
+      document.getElementById('dash-greeting').textContent = `Welcome, ${res.supervisorName}`;
+      document.getElementById('dash-sub').textContent      = `${res.students.length} active student${res.students.length !== 1 ? 's' : ''} · ${res.semester || ''}`;
+      if (res.programName) document.getElementById('hdr-prog').textContent = res.programName;
+
+      document.getElementById('state-login').style.display     = 'none';
+      document.getElementById('state-dashboard').style.display = '';
+      renderStudents(res.students);
+    })
+    .withFailureHandler(e => {
+      btn.disabled = false;
+      btn.textContent = 'View my students';
+      showBanner('login-banner', 'error', 'Connection error. Please try again.');
+    })
+    .FH_loadSupervisorPortalData(email);
+}
+
+function renderStudents(students) {
+  const grid = document.getElementById('students-grid');
+
+  const riskChip = f => {
+    const m = {'🔴 At Risk':['ch-risk','At risk'],'🟡 Monitor':['ch-mon','Monitor'],'🟢 On Track':['ch-on','On track'],'✅ Completed':['ch-done','Completed']};
+    const [c, l] = m[f] || ['ch-pending', f || '—'];
+    return `<span class="chip ${c}">${esc(l)}</span>`;
+  };
+
+  const msClass = s => ({Completed:'s-done','In Progress':'s-active',Submitted:'s-active',Overdue:'s-overdue'}[s]||'s-pending');
+  const msChip  = s => ({Completed:'ch-done','In Progress':'ch-active',Submitted:'ch-active',Overdue:'ch-overdue'}[s]||'ch-pending');
+
+  grid.innerHTML = students.map((s, si) => {
+    const pct   = s.progress || 0;
+    const pCls  = pct === 100 ? 'pd' : pct >= 60 ? 'ph' : pct >= 30 ? 'pm' : 'pl';
+    const inits = initials(s.name);
+
+    const msList = (s.milestones || []).map((m, mi) => `
+      <div class="ms-item ${msClass(m.status)}">
+        <div class="ms-item-num">${mi + 1}</div>
+        <span class="ms-item-name">${esc(m.name)}</span>
+        ${m.targetDate ? `<span class="ms-item-date">${esc(m.targetDate)}</span>` : ''}
+        ${m.daysOverdue > 0 ? `<span class="chip ch-overdue">${m.daysOverdue}d late</span>` : `<span class="chip ${msChip(m.status)}">${esc(m.status)}</span>`}
+      </div>`).join('');
+
+    const msOptions = (s.milestones || []).map(m =>
+      `<option value="${esc(m.name)}">${esc(m.name)} — ${esc(m.status)}</option>`
+    ).join('');
+
+    return `<div class="student-card" id="sc-${si}">
+      <div class="sc-header" onclick="toggleStudent(${si})">
+        <div class="sc-avatar">${inits}</div>
+        <div style="flex:1">
+          <div class="sc-name">${esc(s.name)}</div>
+          <div class="sc-reg">${esc(s.regNo)}</div>
+        </div>
+        ${riskChip(s.riskFlag)}
+        <div class="sc-chevron" id="chev-${si}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></div>
+      </div>
+      <div class="sc-progress">
+        <div class="pbar"><div class="pbar-fill ${pCls}" style="width:${pct}%"></div></div>
+        <span class="pbar-pct">${pct}% · ${esc(s.currentMilestone)}</span>
+      </div>
+      <div class="sc-body" id="scb-${si}">
+        <div class="ms-list">${msList}</div>
+        <div class="feedback-btn-row">
+          <button class="btn btn-primary" onclick="openFeedbackForm(${si})">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            Submit feedback
+          </button>
+        </div>
+        <div class="feedback-form" id="ff-${si}">
+          <div class="feedback-form-title">Submit milestone feedback for ${esc(s.name)}</div>
+          <div id="ff-banner-${si}" style="display:none"></div>
+          <div class="feedback-fg">
+            <label class="form-label">Milestone reviewed</label>
+            <select class="form-select" id="ff-ms-${si}">${msOptions}</select>
+          </div>
+          <div class="feedback-fg">
+            <label class="form-label">Feedback comments <span style="color:var(--red)">*</span></label>
+            <textarea class="form-textarea" id="ff-comments-${si}" rows="4"
+              placeholder="Describe the student's progress, quality of work, and your overall assessment of this milestone."></textarea>
+          </div>
+          <div class="feedback-fg">
+            <label class="form-label">Concerns or risks</label>
+            <textarea class="form-textarea" id="ff-concerns-${si}" rows="2"
+              placeholder="Any concerns, risks, or areas requiring attention."></textarea>
+          </div>
+          <div class="feedback-fg">
+            <label class="form-label">Recommended actions</label>
+            <textarea class="form-textarea" id="ff-recs-${si}" rows="2"
+              placeholder="Actions you recommend the student takes next."></textarea>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:14px">
+            <button class="btn btn-primary" id="ff-submit-${si}" onclick="submitFeedback(${si},'${esc(s.regNo)}')">Submit feedback</button>
+            <button class="btn btn-secondary" onclick="closeFeedbackForm(${si})">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleStudent(i) {
+  const body  = document.getElementById('scb-' + i);
+  const chev  = document.getElementById('chev-' + i);
+  const isOpen= body.classList.contains('open');
+  body.classList.toggle('open', !isOpen);
+  chev.classList.toggle('open', !isOpen);
+}
+
+function openFeedbackForm(i) {
+  document.getElementById('ff-' + i).classList.add('open');
+}
+
+function closeFeedbackForm(i) {
+  document.getElementById('ff-' + i).classList.remove('open');
+}
+
+function submitFeedback(si, regNo) {
+  const ms       = document.getElementById('ff-ms-' + si).value;
+  const comments = document.getElementById('ff-comments-' + si).value.trim();
+  const concerns = document.getElementById('ff-concerns-' + si).value.trim();
+  const recs     = document.getElementById('ff-recs-' + si).value.trim();
+
+  if (!comments || comments.length < 20) {
+    showBanner('ff-banner-' + si, 'error', 'Feedback comments must be at least 20 characters.');
+    return;
+  }
+
+  const btn = document.getElementById('ff-submit-' + si);
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>';
+
+  google.script.run
+    .withSuccessHandler(res => {
+      btn.disabled = false;
+      btn.textContent = 'Submit feedback';
+      if (!res.success) { showBanner('ff-banner-' + si, 'error', res.message); return; }
+      closeFeedbackForm(si);
+      showBanner('global-banner', 'success', `Feedback submitted for ${SV.students[si]?.name || 'student'}. Thank you.`);
+      document.getElementById('ff-comments-' + si).value = '';
+      document.getElementById('ff-concerns-' + si).value = '';
+      document.getElementById('ff-recs-' + si).value = '';
+    })
+    .withFailureHandler(e => {
+      btn.disabled = false;
+      btn.textContent = 'Submit feedback';
+      showBanner('ff-banner-' + si, 'error', 'A connection error occurred. Please try again.');
+    })
+    .FH_submitFeedbackFromPortal({
+      supervisorEmail  : SV.email,
+      studentRegNo     : regNo,
+      milestoneReviewed: ms,
+      comments, concerns, recommendations: recs,
+    });
+}
+
+function signOut() {
+  SV.email = null; SV.name = null; SV.students = [];
+  document.getElementById('state-dashboard').style.display = 'none';
+  document.getElementById('state-login').style.display = '';
+  document.getElementById('sup-email').value = '';
+}
+
+function showBanner(id, type, msg) {
+  const icons = {
+    success: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>',
+    error  : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>',
+    info   : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/></svg>',
+  };
+  const el = document.getElementById(id);
+  el.style.display = '';
+  el.innerHTML = `<div class="banner b-${type}">${icons[type]||''}<span>${esc(msg)}</span></div>`;
+}
+
+function initials(name) {
+  const p = String(name||'').trim().split(/\s+/);
+  return p.length === 1 ? p[0].slice(0,2).toUpperCase() : (p[0][0]+p[p.length-1][0]).toUpperCase();
+}
+
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && document.getElementById('state-login').style.display !== 'none') loadPortal();
+});
+</script>
+</body>
+</html>

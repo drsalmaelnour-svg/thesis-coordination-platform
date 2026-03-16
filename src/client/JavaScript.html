@@ -1,0 +1,883 @@
+<script>
+// ============================================================
+// JavaScript.html — Coordinator Dashboard Frontend
+// GMU MSc MLS Thesis Coordination System — Phase 3
+//
+// Module architecture:
+//   AppState  — single source of truth, never mutated directly
+//   API       — all google.script.run calls
+//   Render    — pure DOM-writing functions
+//   Table     — table state: filter, sort, render
+//   Profile   — student profile drawer lifecycle
+//   Alerts    — alerts panel
+//   Nav       — view switching
+//   Actions   — coordinator quick actions
+//   Toast     — notification toasts
+//   Utils     — pure helpers
+// ============================================================
+
+// ────────────────────────────────────────────────────────────
+// APP STATE
+// ────────────────────────────────────────────────────────────
+const AppState = {
+  students      : [],
+  filtered      : [],
+  summary       : {},
+  config        : {},
+  currentView   : 'dashboard',
+  currentRegNo  : null,
+  sortCol       : 'studentName',
+  sortAsc       : true,
+  filters       : { supervisor: '', risk: '', milestone: '', search: '' },
+  profileData   : null,
+  initialized   : false,
+};
+
+const MILESTONE_NAMES = [
+  'Proposal Development',
+  'Proposal Presentation',
+  'IRB Submission',
+  'Data Collection',
+  'Data Analysis',
+  'Thesis Writing',
+  'Final Defense',
+];
+
+const RISK_LABELS = {
+  '🔴 At Risk' : 'risk',
+  '🟡 Monitor' : 'monitor',
+  '🟢 On Track': 'on',
+  '✅ Completed':'done',
+  '⚫ Inactive' :'inactive',
+};
+
+// ────────────────────────────────────────────────────────────
+// INIT
+// ────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  populateMilestoneFilter();
+  API.loadDashboard();
+  API.loadSettings();
+});
+
+// ────────────────────────────────────────────────────────────
+// API — wraps google.script.run
+// ────────────────────────────────────────────────────────────
+const API = {
+  call(fn, args, onSuccess, onError) {
+    let runner = google.script.run
+      .withSuccessHandler(r => {
+        if (r && r.error) {
+          Toast.show(r.error, 'error');
+          if (onError) onError(r.error);
+          return;
+        }
+        onSuccess(r);
+      })
+      .withFailureHandler(e => {
+        Toast.show(e.message || 'An error occurred.', 'error');
+        if (onError) onError(e);
+      });
+    if (args && args.length) runner[fn](...args);
+    else runner[fn]();
+  },
+
+  loadDashboard() {
+    this.call('API_getDashboardData', [], data => {
+      AppState.students = data.students || [];
+      AppState.summary  = data.summaryCards || {};
+      document.getElementById('sidebar-semester').textContent = data.semester || '—';
+      document.getElementById('topbar-sub').textContent = data.programName || 'MSc Medical Laboratory Science';
+      Render.metrics(AppState.summary, AppState.students);
+      Alerts.render(AppState.students);
+      Render.supervisorFilter(AppState.students);
+      Table.filter();
+      Render.milestoneTab(AppState.students);
+      document.getElementById('loading-screen').style.display = 'none';
+      AppState.initialized = true;
+    });
+  },
+
+  loadSettings() {
+    this.call('API_getSystemStats', [], data => {
+      const coordinator = data.coordinatorName || '—';
+      document.getElementById('sidebar-coordinator').textContent = coordinator;
+      document.getElementById('sidebar-avatar').textContent = Utils.initials(coordinator);
+      Render.settings(data);
+    });
+  },
+
+  loadProfile(regNo) {
+    AppState.currentRegNo = regNo;
+    document.getElementById('profile-body').innerHTML = `
+      <div class="empty-state" style="padding:32px">
+        <div class="spinner"></div>
+        <div style="margin-top:12px;font-size:var(--text-sm);color:var(--text-muted)">Loading profile…</div>
+      </div>`;
+    this.call('API_getStudentProfile', [regNo], data => {
+      AppState.profileData = data;
+      Profile.render(data);
+    });
+  },
+
+  updateMilestone(regNo, milestoneName, status, notes) {
+    this.call('API_updateMilestoneStatus', [regNo, milestoneName, status, notes], () => {
+      Toast.show('Milestone updated.', 'success');
+      API.loadProfile(regNo);
+      API.loadDashboard();
+    });
+  },
+
+  addNote(regNo, text) {
+    this.call('API_addCoordinatorNote', [regNo, text, 'General'], () => {
+      Toast.show('Note saved.');
+      API.loadProfile(regNo);
+    });
+  },
+
+  sendORCIDRequest(regNo) {
+    this.call('API_sendORCIDRequest', [regNo], () => Toast.show('ORCID request sent.', 'success'));
+  },
+
+  rebuildDashboard() {
+    this.call('API_rebuildDashboard', [], data => {
+      AppState.students = data.students || [];
+      AppState.summary  = data.summaryCards || {};
+      Render.metrics(AppState.summary, AppState.students);
+      Alerts.render(AppState.students);
+      Table.filter();
+      Toast.show('Dashboard rebuilt.', 'success');
+    });
+  },
+};
+
+// ────────────────────────────────────────────────────────────
+// RENDER — pure DOM writers
+// ────────────────────────────────────────────────────────────
+const Render = {
+  metrics(cards, students) {
+    Utils.set('m-total',   cards.totalStudents ?? '—');
+    Utils.set('m-total-sub', `${cards.completedStudents ?? 0} completed · ${students.length} total`);
+    Utils.set('m-ontrack', cards.totalStudents - (cards.atRisk ?? 0) - (cards.monitoring ?? 0) - (cards.completedStudents ?? 0));
+    Utils.set('m-risk',    cards.atRisk ?? '—');
+    Utils.set('m-monitor', cards.monitoring ?? '—');
+    Utils.set('m-ms',      cards.totalMilestonesCompleted ?? '—');
+    Utils.set('m-orcid',   cards.missingORCID ?? '—');
+
+    const badge = document.getElementById('risk-badge');
+    const notifDot = document.getElementById('notif-dot');
+    const hasRisk = (cards.atRisk ?? 0) > 0;
+    if (hasRisk) {
+      badge.style.display = '';
+      badge.textContent   = cards.atRisk;
+      notifDot.style.display = '';
+    } else {
+      badge.style.display    = 'none';
+      notifDot.style.display = 'none';
+    }
+  },
+
+  supervisorFilter(students) {
+    const sups = [...new Set(students.map(s => s.supervisorName).filter(Boolean))].sort();
+    const sel  = document.getElementById('f-supervisor');
+    sel.innerHTML = '<option value="">All supervisors</option>';
+    sups.forEach(sv => {
+      const o = document.createElement('option');
+      o.value = sv; o.textContent = sv;
+      sel.appendChild(o);
+    });
+  },
+
+  table(students) {
+    const tbody = document.getElementById('student-tbody');
+    if (!students.length) {
+      tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <div class="empty-state-title">No students match</div>
+        <p>Try adjusting your filters or search term.</p>
+      </div></td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = students.map(s => {
+      const initials = Utils.initials(s.studentName);
+      const dots     = Render.milestoneDots(s.milestones || []);
+      const pct      = s.progress || 0;
+      const pClass   = pct === 100 ? 'pd' : pct >= 60 ? 'ph' : pct >= 30 ? 'pm' : 'pl';
+      const riskChip = Render.riskChip(s.riskFlag);
+      const lastAct  = s.lastReflectionDate !== '—' ? s.lastReflectionDate : (s.lastContact ? Utils.fmtDate(s.lastContact) : '—');
+
+      return `<tr onclick="Profile.open('${Utils.esc(s.regNo)}')">
+        <td>
+          <div class="cell-student">
+            <div class="stu-avatar">${initials}</div>
+            <div>
+              <div class="stu-name">${Utils.esc(s.studentName)}</div>
+              <div class="stu-reg">${Utils.esc(s.regNo)}</div>
+            </div>
+          </div>
+        </td>
+        <td style="font-size:var(--text-sm);color:var(--text-secondary)">${Utils.esc(s.supervisorName || '—')}</td>
+        <td>${dots}</td>
+        <td>
+          <div class="pbar-wrap">
+            <div class="pbar-track"><div class="pbar-fill ${pClass}" style="width:${pct}%"></div></div>
+            <div class="pbar-lbl">${pct}% · ${s.currentMilestone || '—'}</div>
+          </div>
+        </td>
+        <td style="font-size:var(--text-xs);color:var(--text-muted);white-space:nowrap">${Utils.esc(lastAct)}</td>
+        <td>${riskChip}</td>
+        <td onclick="event.stopPropagation()" style="white-space:nowrap">
+          <div style="display:flex;gap:5px">
+            <button class="btn btn-secondary btn-xs" onclick="Profile.open('${Utils.esc(s.regNo)}')">View</button>
+            <button class="btn btn-ghost btn-xs" onclick="Actions.quickEmail('${Utils.esc(s.regNo)}')" title="Send email">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:11px;height:11px"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+            </button>
+          </div>
+        </td>
+      </tr>`;
+    }).join('');
+  },
+
+  milestoneDots(milestones) {
+    if (!milestones || !milestones.length) return '<span style="font-size:var(--text-xs);color:var(--text-muted)">—</span>';
+    const sorted = [...milestones].sort((a,b) => a.order - b.order);
+    const dots = sorted.map(m => {
+      const cls = {
+        'Completed'  : 'd-done',
+        'In Progress': 'd-active',
+        'Submitted'  : 'd-submitted',
+        'Overdue'    : 'd-overdue',
+        'Not Started': 'd-pending',
+      }[m.status] || 'd-pending';
+      return `<div class="ms-dot ${cls}" title="${Utils.esc(m.name)}: ${Utils.esc(m.status)}"></div>`;
+    }).join('');
+    const done = sorted.filter(m => m.status === 'Completed').length;
+    return `<div class="ms-dots">${dots}<span class="ms-dot-pct">${done}/7</span></div>`;
+  },
+
+  riskChip(flag) {
+    const map = {
+      '🔴 At Risk' : ['ch-risk',     'At risk'],
+      '🟡 Monitor' : ['ch-mon',      'Monitor'],
+      '🟢 On Track': ['ch-on',       'On track'],
+      '✅ Completed':['ch-done',     'Completed'],
+      '⚫ Inactive' :['ch-inactive', 'Inactive'],
+    };
+    const [cls, label] = map[flag] || ['ch-inactive', flag || '—'];
+    return `<span class="chip ${cls}"><span class="chip-dot"></span>${Utils.esc(label)}</span>`;
+  },
+
+  milestoneTab(students) {
+    const tbody = document.getElementById('milestone-tbody');
+    if (!students.length) { tbody.innerHTML = '<tr><td colspan="8" style="padding:22px;text-align:center;color:var(--text-muted)">No data</td></tr>'; return; }
+    const msMap = {
+      'Completed'  : 'ch-ms-done',
+      'In Progress': 'ch-ms-ip',
+      'Submitted'  : 'ch-ms-sub',
+      'Overdue'    : 'ch-ms-od',
+      'Not Started': 'ch-ms-ns',
+    };
+    tbody.innerHTML = students.map(s => {
+      const cells = MILESTONE_NAMES.map(mn => {
+        const m   = (s.milestones || []).find(x => x.name === mn);
+        const st  = m ? m.status : 'Not Started';
+        const cls = msMap[st] || 'ch-ms-ns';
+        const lbl = st === 'Not Started' ? '—' : st;
+        return `<td><span class="chip ${cls}" style="font-size:10px;padding:2px 7px">${Utils.esc(lbl)}</span></td>`;
+      }).join('');
+      return `<tr onclick="Profile.open('${Utils.esc(s.regNo)}')">
+        <td><div style="font-size:var(--text-sm);font-weight:600">${Utils.esc(s.studentName)}</div>
+            <div style="font-size:10px;color:var(--text-muted)">${Utils.esc(s.regNo)}</div></td>
+        ${cells}
+      </tr>`;
+    }).join('');
+  },
+
+  settings(data) {
+    const fields = [
+      ['Program', data.programName],
+      ['Institution', data.institution],
+      ['Semester', data.semester],
+      ['Coordinator', data.coordinatorName],
+      ['Active students', data.activeStudents],
+      ['Cohorts', (data.cohorts || []).join(', ') || '—'],
+      ['Scheduled triggers', (data.triggersInstalled || []).join(', ') || 'None installed'],
+      ['Last dashboard build', data.lastDashboardBuild || 'Never'],
+    ];
+    document.getElementById('settings-body').innerHTML = fields.map(([k,v],i) =>
+      `<div style="display:flex;gap:14px;padding:12px 18px;${i > 0 ? 'border-top:1px solid var(--border-default)' : ''}">
+        <span style="font-size:var(--text-xs);font-weight:600;color:var(--text-muted);width:160px;flex-shrink:0;padding-top:2px">${Utils.esc(k)}</span>
+        <span style="font-size:var(--text-sm);font-weight:500;color:var(--text-primary)">${Utils.esc(String(v || '—'))}</span>
+      </div>`
+    ).join('');
+  },
+};
+
+// ────────────────────────────────────────────────────────────
+// TABLE — filter, sort, render pipeline
+// ────────────────────────────────────────────────────────────
+const Table = {
+  filter() {
+    const search = (document.getElementById('global-search').value || '').toLowerCase();
+    const supF   = document.getElementById('f-supervisor').value;
+    const riskF  = document.getElementById('f-risk').value;
+    const msF    = document.getElementById('f-milestone').value;
+
+    AppState.filters = { supervisor: supF, risk: riskF, milestone: msF, search };
+
+    let list = [...AppState.students];
+
+    if (search) list = list.filter(s =>
+      s.studentName?.toLowerCase().includes(search) ||
+      s.regNo?.toLowerCase().includes(search) ||
+      s.supervisorName?.toLowerCase().includes(search)
+    );
+    if (supF) list = list.filter(s => s.supervisorName === supF);
+    if (riskF) list = list.filter(s => RISK_LABELS[s.riskFlag] === riskF);
+    if (msF)   list = list.filter(s => s.currentMilestone === msF);
+
+    list = this._sort(list);
+    AppState.filtered = list;
+
+    const countEl = document.getElementById('filter-count');
+    countEl.textContent = `Showing ${list.length} of ${AppState.students.length} students`;
+    Render.table(list);
+  },
+
+  sort(col) {
+    const headers = document.querySelectorAll('.data-table thead th[data-col]');
+    headers.forEach(th => {
+      th.classList.remove('sort-asc','sort-desc');
+      th.classList.add('sort-none');
+    });
+    if (AppState.sortCol === col) {
+      AppState.sortAsc = !AppState.sortAsc;
+    } else {
+      AppState.sortCol = col;
+      AppState.sortAsc = true;
+    }
+    const activeHeader = document.querySelector(`.data-table thead th[data-col="${col}"]`);
+    if (activeHeader) {
+      activeHeader.classList.remove('sort-none');
+      activeHeader.classList.add(AppState.sortAsc ? 'sort-asc' : 'sort-desc');
+    }
+    this.filter();
+  },
+
+  _sort(list) {
+    const { sortCol, sortAsc } = AppState;
+    return [...list].sort((a,b) => {
+      const av = sortCol === 'progress' ? (a.progress || 0) : (a[sortCol] || '').toString().toLowerCase();
+      const bv = sortCol === 'progress' ? (b.progress || 0) : (b[sortCol] || '').toString().toLowerCase();
+      if (av < bv) return sortAsc ? -1 : 1;
+      if (av > bv) return sortAsc ?  1 : -1;
+      return 0;
+    });
+  },
+
+  clearFilters() {
+    document.getElementById('global-search').value    = '';
+    document.getElementById('f-supervisor').value     = '';
+    document.getElementById('f-risk').value           = '';
+    document.getElementById('f-milestone').value      = '';
+    AppState.filters = { supervisor:'', risk:'', milestone:'', search:'' };
+    this.filter();
+  },
+};
+
+// ────────────────────────────────────────────────────────────
+// PROFILE — student profile drawer
+// ────────────────────────────────────────────────────────────
+const Profile = {
+  open(regNo) {
+    document.getElementById('profile-overlay').classList.add('open');
+    document.getElementById('qa-bar').style.display = '';
+    API.loadProfile(regNo);
+  },
+
+  close() {
+    document.getElementById('profile-overlay').classList.remove('open');
+    AppState.currentRegNo  = null;
+    AppState.profileData   = null;
+  },
+
+  switchTab(btn) {
+    document.querySelectorAll('.ptab').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    const tab = btn.dataset.tab;
+    document.querySelectorAll('.profile-tab-content').forEach(c => c.classList.remove('active'));
+    const el = document.getElementById('ptab-' + tab);
+    if (el) el.classList.add('active');
+  },
+
+  render(data) {
+    const { student, milestones, reflections, feedback, notes, emailHistory, progress } = data;
+    document.getElementById('drawer-name').textContent = student.studentName;
+    document.getElementById('drawer-reg').textContent  = student.regNo;
+
+    const riskChip = Render.riskChip(student.riskFlag);
+    const pClass   = progress === 100 ? 'pd' : progress >= 60 ? 'ph' : progress >= 30 ? 'pm' : 'pl';
+    const hasORCID = !!student.orcid;
+
+    document.getElementById('profile-body').innerHTML = `
+      <!-- Overview tab -->
+      <div class="profile-tab-content active" id="ptab-overview">
+        <div class="profile-hero">
+          <div class="p-avatar">${Utils.initials(student.studentName)}</div>
+          <div>
+            <div class="p-hero-name">${Utils.esc(student.studentName)}</div>
+            <div class="p-hero-meta">
+              <span>${Utils.esc(student.regNo)}</span>
+              <span class="p-hero-sep">·</span>
+              <span>${Utils.esc(student.supervisorName)}</span>
+              ${student.status !== 'Active' ? `<span class="p-hero-sep">·</span><span style="color:var(--text-muted)">${Utils.esc(student.status)}</span>` : ''}
+            </div>
+            <div style="display:flex;gap:7px;margin-top:9px;flex-wrap:wrap">
+              ${riskChip}
+              <span class="chip ${hasORCID ? 'ch-on' : 'ch-mon'}">
+                <span class="chip-dot"></span>${hasORCID ? 'ORCID on file' : 'ORCID missing'}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div class="progress-hero">
+          <div class="ph-label">Overall progress</div>
+          <div class="ph-value">${progress}%</div>
+          <div class="ph-track"><div class="ph-fill" style="width:${progress}%"></div></div>
+          <div class="ph-chips">
+            <span class="ph-chip">${milestones.filter(m => m.status==='Completed').length}/7 milestones done</span>
+            <span class="ph-chip">${reflections.length} reflection${reflections.length!==1?'s':''}</span>
+            <span class="ph-chip">${feedback.length} feedback item${feedback.length!==1?'s':''}</span>
+          </div>
+        </div>
+
+        <div class="info-grid">
+          <div class="info-cell"><div class="info-cell-label">Email</div>
+            <div class="info-cell-value" style="color:var(--accent-600)">${Utils.esc(student.studentEmail)}</div></div>
+          <div class="info-cell"><div class="info-cell-label">Co-supervisor</div>
+            <div class="info-cell-value ${student.coSupervisor ? '' : 'missing'}">${Utils.esc(student.coSupervisor || 'Not assigned')}</div></div>
+          <div class="info-cell"><div class="info-cell-label">ORCID</div>
+            <div class="info-cell-value ${student.orcid ? '' : 'missing'}">${Utils.esc(student.orcid || 'Not submitted')}</div></div>
+          <div class="info-cell"><div class="info-cell-label">Enrollment date</div>
+            <div class="info-cell-value ${student.enrollmentDate ? '' : 'missing'}">${student.enrollmentDate ? Utils.fmtDate(student.enrollmentDate) : 'Not set'}</div></div>
+          <div class="info-cell"><div class="info-cell-label">Last contact</div>
+            <div class="info-cell-value ${student.lastContact ? '' : 'missing'}">${student.lastContact ? Utils.fmtDate(student.lastContact) : 'No record'}</div></div>
+          <div class="info-cell"><div class="info-cell-label">Next follow-up</div>
+            <div class="info-cell-value ${student.nextFollowup ? '' : 'missing'}">${student.nextFollowup ? Utils.fmtDate(student.nextFollowup) : 'Not scheduled'}</div></div>
+          <div class="info-cell"><div class="info-cell-label">Supervisor email</div>
+            <div class="info-cell-value" style="color:var(--accent-600)">${Utils.esc(student.supervisorEmail)}</div></div>
+          <div class="info-cell"><div class="info-cell-label">Coordinator notes</div>
+            <div class="info-cell-value">${notes.length} note${notes.length!==1?'s':''} on file</div></div>
+        </div>
+      </div>
+
+      <!-- Milestones tab -->
+      <div class="profile-tab-content" id="ptab-milestones">
+        <div class="psection">
+          <div class="ps-hdr">
+            <div class="ps-icon" style="background:var(--accent-50);color:var(--accent-700)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+            </div>
+            <span class="ps-title">Milestone timeline</span>
+            <span style="font-size:var(--text-xs);color:var(--text-muted)">${milestones.filter(m=>m.status==='Completed').length} of 7 completed</span>
+          </div>
+          <div class="ms-tl">
+            ${milestones.map((m,i) => {
+              const cls = {Completed:'done','In Progress':'active',Submitted:'active',Overdue:'overdue'}[m.status] || 'pending';
+              const msCls = {'Completed':'ch-ms-done','In Progress':'ch-ms-ip','Submitted':'ch-ms-sub','Overdue':'ch-ms-od','Not Started':'ch-ms-ns'}[m.status]||'ch-ms-ns';
+              const target = m.targetDate ? Utils.fmtDate(m.targetDate) : '';
+              const done   = m.completionDate ? 'Done '+Utils.fmtDate(m.completionDate) : '';
+              const overdue= m.daysOverdue > 0 ? `<span class="chip ch-risk" style="font-size:10px;padding:2px 6px">${m.daysOverdue}d late</span>` : '';
+              return `<div class="ms-row ${cls}">
+                <div class="ms-num">${i+1}</div>
+                <div style="flex:1">
+                  <div style="font-size:var(--text-sm);font-weight:500;color:var(--text-primary)">${Utils.esc(m.name)}</div>
+                  <div style="font-size:var(--text-xs);color:var(--text-muted);margin-top:2px">${target}${target&&done?' · ':''}${done}</div>
+                </div>
+                ${overdue}
+                <span class="chip ${msCls}" style="font-size:10px;padding:2px 7px;margin-right:6px">${Utils.esc(m.status)}</span>
+                <div style="display:flex;gap:4px">
+                  <button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();Profile.editMilestone('${Utils.esc(student.regNo)}','${Utils.esc(m.name)}','${Utils.esc(m.status)}')">Update</button>
+                </div>
+              </div>`;
+            }).join('')}
+          </div>
+        </div>
+      </div>
+
+      <!-- Reflections tab -->
+      <div class="profile-tab-content" id="ptab-reflections">
+        ${reflections.length ? reflections.map(r => `
+          <div class="ccard">
+            <div class="ccard-meta">
+              <span class="chip ch-ms-ip" style="font-size:10px;padding:2px 7px">${Utils.esc(r.milestoneName)}</span>
+              <span class="ccard-date">${Utils.fmtDate(r.timestamp)}</span>
+            </div>
+            <div class="ccard-text">${Utils.esc(r.reflectionText)}</div>
+            ${r.challenges ? `<div class="ccard-sub"><div class="ccard-sub-lbl">Challenges</div><div class="ccard-sub-val">${Utils.esc(r.challenges)}</div></div>` : ''}
+            ${r.supportNeeded ? `<div class="ccard-sub"><div class="ccard-sub-lbl">Support needed</div><div class="ccard-sub-val">${Utils.esc(r.supportNeeded)}</div></div>` : ''}
+          </div>`).join('')
+        : `<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            <div class="empty-state-title">No reflections yet</div><p>The student has not submitted any reflections.</p></div>`}
+      </div>
+
+      <!-- Feedback tab -->
+      <div class="profile-tab-content" id="ptab-feedback">
+        ${feedback.length ? feedback.map(f => `
+          <div class="ccard">
+            <div class="ccard-meta">
+              <span class="chip ch-ms-ip" style="font-size:10px;padding:2px 7px">${Utils.esc(f.milestoneReviewed)}</span>
+              <span style="font-size:var(--text-xs);color:var(--text-secondary)">${Utils.esc(f.supervisorName)}</span>
+              <span class="ccard-date">${Utils.fmtDate(f.timestamp)}</span>
+            </div>
+            <div class="ccard-text">${Utils.esc(f.comments)}</div>
+            ${f.concerns ? `<div class="ccard-sub"><div class="ccard-sub-lbl">Concerns</div><div class="ccard-sub-val">${Utils.esc(f.concerns)}</div></div>` : ''}
+            ${f.recommendations ? `<div class="ccard-sub"><div class="ccard-sub-lbl">Recommendations</div><div class="ccard-sub-val">${Utils.esc(f.recommendations)}</div></div>` : ''}
+          </div>`).join('')
+        : `<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            <div class="empty-state-title">No supervisor feedback yet</div><p>No feedback has been submitted for this student.</p></div>`}
+      </div>
+
+      <!-- Notes tab -->
+      <div class="profile-tab-content" id="ptab-notes">
+        <div class="psection">
+          <div class="ps-hdr"><span class="ps-title">Coordinator notes</span></div>
+          ${notes.length ? notes.map(n => `
+            <div style="padding:11px 16px;border-bottom:1px solid var(--border-default)">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
+                <span class="chip ch-inactive" style="font-size:10px;padding:2px 6px">${Utils.esc(n.category)}</span>
+                <span style="font-size:var(--text-xs);color:var(--text-muted);margin-left:auto">${Utils.fmtDate(n.timestamp)}</span>
+              </div>
+              <div style="font-size:var(--text-sm);color:var(--text-primary);line-height:1.6">${Utils.esc(n.noteText)}</div>
+            </div>`).join('')
+          : `<div style="padding:22px;text-align:center;font-size:var(--text-sm);color:var(--text-muted)">No notes yet.</div>`}
+          <div class="note-form">
+            <textarea id="note-input" placeholder="Add a coordinator note…"></textarea>
+            <button class="btn btn-primary btn-sm" onclick="Profile.submitNote()">Save</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Comms tab -->
+      <div class="profile-tab-content" id="ptab-comms">
+        <div class="psection">
+          <div class="ps-hdr"><span class="ps-title">Email history</span></div>
+          ${emailHistory.length ? emailHistory.map(e => `
+            <div class="email-row">
+              <span class="chip ch-inactive" style="font-size:10px;padding:2px 6px">${Utils.esc(e.emailType)}</span>
+              <span class="email-row-subj">${Utils.esc(e.subject)}</span>
+              <span class="email-row-date">${Utils.fmtDate(e.timestamp)}</span>
+            </div>`).join('')
+          : `<div style="padding:22px;text-align:center;font-size:var(--text-sm);color:var(--text-muted)">No emails sent yet.</div>`}
+        </div>
+      </div>
+    `;
+  },
+
+  editMilestone(regNo, name, currentStatus) {
+    const statuses = ['Not Started','In Progress','Submitted','Completed','Overdue'];
+    const opts = statuses.map(s => `<option value="${s}"${s===currentStatus?' selected':''}>${s}</option>`).join('');
+    Modal.show('Update milestone', `
+      <div class="form-group">
+        <label class="form-label">Milestone</label>
+        <div style="font-size:var(--text-md);font-weight:600;color:var(--text-primary);margin-top:2px">${Utils.esc(name)}</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">New status</label>
+        <select class="form-select" id="ms-status">${opts}</select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Notes (optional)</label>
+        <textarea class="form-textarea" id="ms-notes" placeholder="Note about this status change…"></textarea>
+      </div>`,
+      `<button class="btn btn-ghost btn-sm" onclick="Modal.close()">Cancel</button>
+       <button class="btn btn-primary btn-sm" onclick="Profile._confirmMilestoneEdit('${Utils.esc(regNo)}','${Utils.esc(name)}')">Save update</button>`
+    );
+  },
+
+  _confirmMilestoneEdit(regNo, name) {
+    const status = document.getElementById('ms-status').value;
+    const notes  = document.getElementById('ms-notes').value;
+    Modal.close();
+    API.updateMilestone(regNo, name, status, notes);
+  },
+
+  submitNote() {
+    const text = document.getElementById('note-input')?.value?.trim();
+    if (!text) return;
+    document.getElementById('note-input').value = '';
+    API.addNote(AppState.currentRegNo, text);
+  },
+
+  sendORCID() {
+    if (!AppState.currentRegNo) return;
+    if (!confirm('Send ORCID request email to this student?')) return;
+    API.sendORCIDRequest(AppState.currentRegNo);
+  },
+
+  sendReminder() {
+    if (!AppState.currentRegNo) return;
+    Toast.show('Reminder feature connects to Phase 4 email automation.', 'info');
+  },
+
+  toggleFlag() {
+    Toast.show('Flag feature — student next follow-up will be set. (Phase 4)', 'info');
+  },
+
+  openEmailModal() {
+    const student = AppState.profileData?.student;
+    if (!student) return;
+    Modal.show(`Email ${student.studentName}`,
+      `<div class="form-group">
+        <label class="form-label">Subject</label>
+        <input class="form-input" id="email-subject" type="text" placeholder="Email subject">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Message</label>
+        <textarea class="form-textarea" id="email-body" style="min-height:100px" placeholder="Message body (HTML supported)"></textarea>
+      </div>`,
+      `<button class="btn btn-ghost btn-sm" onclick="Modal.close()">Cancel</button>
+       <button class="btn btn-primary btn-sm" onclick="Profile._sendEmail('${Utils.esc(student.regNo)}')">Send email</button>`
+    );
+  },
+
+  _sendEmail(regNo) {
+    const subject = document.getElementById('email-subject')?.value?.trim();
+    const body    = document.getElementById('email-body')?.value?.trim();
+    if (!subject || !body) { Toast.show('Subject and body are required.', 'error'); return; }
+    Modal.close();
+    google.script.run
+      .withSuccessHandler(r => Toast.show(r.success ? 'Email sent.' : r.error, r.success ? 'success' : 'error'))
+      .withFailureHandler(e => Toast.show(e.message, 'error'))
+      .API_sendEmailToStudent(regNo, subject, body);
+  },
+};
+
+// ────────────────────────────────────────────────────────────
+// ALERTS
+// ────────────────────────────────────────────────────────────
+const Alerts = {
+  render(students) {
+    const atRisk = students.filter(s => s.riskFlag === '🔴 At Risk');
+    const panel  = document.getElementById('alerts-panel');
+    const grid   = document.getElementById('alerts-grid');
+    const count  = document.getElementById('alerts-count');
+
+    if (!atRisk.length) { panel.style.display = 'none'; return; }
+
+    panel.style.display = '';
+    count.textContent   = atRisk.length;
+
+    grid.innerHTML = atRisk.map(s => {
+      const overdue = (s.milestones||[]).filter(m => (m.daysOverdue||0) > 0);
+      const problem = overdue.length ? `${overdue.length} overdue milestone${overdue.length>1?'s':''}` : 'Risk flag set';
+      return `<div class="alert-item">
+        <div class="alert-name">${Utils.esc(s.studentName)}</div>
+        <div style="font-size:var(--text-xs);color:var(--text-muted)">${Utils.esc(s.regNo)} · ${Utils.esc(s.supervisorName)}</div>
+        <div class="alert-problem">${Utils.esc(problem)}</div>
+        <div class="alert-actions">
+          <span class="chip ch-risk" style="font-size:10px;padding:2px 6px">At risk</span>
+          <button class="btn btn-xs btn-secondary" onclick="Profile.open('${Utils.esc(s.regNo)}')">View profile</button>
+        </div>
+      </div>`;
+    }).join('');
+  },
+
+  togglePanel() {
+    const body    = document.getElementById('alerts-body');
+    const chevron = document.getElementById('alerts-chevron');
+    body.classList.toggle('open');
+    chevron.classList.toggle('open');
+  },
+};
+
+// ────────────────────────────────────────────────────────────
+// NAV
+// ────────────────────────────────────────────────────────────
+const Nav = {
+  views: ['dashboard','students','milestones','email','reports','settings'],
+  titles: { dashboard:'Dashboard', students:'Students', milestones:'Milestones',
+            email:'Email centre', reports:'Reports', settings:'Settings' },
+
+  show(view) {
+    if (view === 'students') view = 'dashboard';
+
+    this.views.forEach(v => {
+      const el = document.getElementById('view-'+v);
+      if (el) el.style.display = v === view ? '' : 'none';
+      const nav = document.getElementById('nav-'+v);
+      if (nav) nav.classList.toggle('active', v === view);
+    });
+
+    document.getElementById('topbar-title').textContent = this.titles[view] || view;
+    AppState.currentView = view;
+  },
+};
+
+// ────────────────────────────────────────────────────────────
+// ACTIONS — coordinator quick actions
+// ────────────────────────────────────────────────────────────
+const Actions = {
+  rebuildDashboard() {
+    Toast.show('Rebuilding dashboard data…', 'info');
+    API.rebuildDashboard();
+  },
+
+  sendBulkEmail(type) {
+    const labels = {
+      orcid       : 'ORCID requests to students without ORCID',
+      reflection  : 'reflection reminders to all active students',
+      supervisor  : 'supervisor feedback reminders',
+      overdue     : 'overdue milestone reminders',
+    };
+    if (!confirm(`Send ${labels[type]}?`)) return;
+    const fnMap = {
+      orcid      : 'sendORCIDRequestsToAll',
+      reflection : 'sendReflectionReminders',
+      supervisor : 'sendSupervisorReminders',
+      overdue    : 'AUTO_sendOverdueMilestoneReminders',
+    };
+    Toast.show('Sending emails…', 'info');
+    google.script.run
+      .withSuccessHandler(() => Toast.show('Emails sent successfully.', 'success'))
+      .withFailureHandler(e  => Toast.show(e.message, 'error'))
+      [fnMap[type]]();
+  },
+
+  sendCustomBulk(audience) {
+    const subject = document.getElementById('bulk-subject')?.value?.trim();
+    const body    = document.getElementById('bulk-body')?.value?.trim();
+    if (!subject || !body) { Toast.show('Subject and body are required.', 'error'); return; }
+    if (!confirm(`Send this email to all ${audience}?`)) return;
+    Toast.show(`Sending to all ${audience}… (Phase 4)`, 'info');
+  },
+
+  sendBulkReminders() {
+    Toast.show(`Send reminders to ${AppState.filtered.length} filtered students — connect via Email centre.`, 'info');
+  },
+
+  quickEmail(regNo) {
+    AppState.currentRegNo = regNo;
+    const student = AppState.students.find(s => s.regNo === regNo);
+    if (student) { AppState.profileData = { student }; Profile.openEmailModal(); }
+  },
+
+  exportCSV() {
+    const cols = ['regNo','studentName','studentEmail','supervisorName','currentMilestone','progress','riskFlag','lastReflectionDate'];
+    const hdrs = ['Reg No','Student','Email','Supervisor','Current Milestone','Progress %','Risk','Last Reflection'];
+    const rows = [hdrs.join(',')];
+    AppState.filtered.forEach(s => {
+      rows.push(cols.map(c => `"${String(s[c]||'').replace(/"/g,'""')}"`).join(','));
+    });
+    const blob = new Blob([rows.join('\n')], {type:'text/csv'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `thesis-progress-${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+  },
+
+  generateBulkReports() {
+    Toast.show('Generating reports…', 'info');
+    google.script.run
+      .withSuccessHandler(() => Toast.show('Reports generated in spreadsheet.', 'success'))
+      .withFailureHandler(e  => Toast.show(e.message, 'error'))
+      .generateBulkReports();
+  },
+
+  flagAtRisk() {
+    Toast.show('Recalculating risk flags…', 'info');
+    google.script.run
+      .withSuccessHandler(() => { Toast.show('Risk flags updated.', 'success'); API.loadDashboard(); })
+      .withFailureHandler(e  => Toast.show(e.message, 'error'))
+      .flagAtRiskStudents();
+  },
+};
+
+// ────────────────────────────────────────────────────────────
+// MODAL
+// ────────────────────────────────────────────────────────────
+const Modal = {
+  show(title, bodyHtml, footerHtml) {
+    this.close();
+    const el = document.createElement('div');
+    el.className = 'modal-overlay';
+    el.id = 'active-modal';
+    el.innerHTML = `
+      <div class="modal-box">
+        <div class="modal-hdr">
+          <span class="modal-title">${Utils.esc(title)}</span>
+          <button class="btn btn-ghost btn-icon btn-sm" onclick="Modal.close()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <div class="modal-body">${bodyHtml}</div>
+        ${footerHtml ? `<div class="modal-ftr">${footerHtml}</div>` : ''}
+      </div>`;
+    document.querySelector('.app-shell').appendChild(el);
+  },
+  close() {
+    const el = document.getElementById('active-modal');
+    if (el) el.remove();
+  },
+};
+
+// ────────────────────────────────────────────────────────────
+// TOAST
+// ────────────────────────────────────────────────────────────
+const Toast = {
+  show(msg, type) {
+    const icons = {
+      success: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>',
+      error  : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>',
+      info   : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>',
+    };
+    const container = document.getElementById('toast-container');
+    const t = document.createElement('div');
+    t.className = `toast${type ? ' t-'+type : ''}`;
+    t.innerHTML = `<span class="toast-icon">${icons[type]||icons.info}</span><span>${Utils.esc(msg)}</span>`;
+    container.appendChild(t);
+    setTimeout(() => { t.style.opacity='0'; t.style.transform='scale(0.92)'; t.style.transition='all .2s'; setTimeout(() => t.remove(), 220); }, 4000);
+  },
+};
+
+// ────────────────────────────────────────────────────────────
+// UTILS — pure helpers
+// ────────────────────────────────────────────────────────────
+const Utils = {
+  esc(str) {
+    return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  },
+
+  initials(name) {
+    if (!name) return '?';
+    const parts = String(name).trim().split(/\s+/);
+    if (parts.length === 1) return parts[0].slice(0,2).toUpperCase();
+    return (parts[0][0] + parts[parts.length-1][0]).toUpperCase();
+  },
+
+  fmtDate(val) {
+    if (!val) return '—';
+    try { return new Date(val).toLocaleDateString('en-GB', {day:'2-digit',month:'short',year:'numeric'}); }
+    catch { return String(val); }
+  },
+
+  set(id, val) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = val;
+  },
+};
+
+// ────────────────────────────────────────────────────────────
+// HELPERS
+// ────────────────────────────────────────────────────────────
+function populateMilestoneFilter() {
+  const sel = document.getElementById('f-milestone');
+  MILESTONE_NAMES.forEach(m => {
+    const o = document.createElement('option');
+    o.value = m; o.textContent = m;
+    sel.appendChild(o);
+  });
+}
+</script>

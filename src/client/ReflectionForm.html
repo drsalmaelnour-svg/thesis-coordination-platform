@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Submit Reflection</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --navy:#0B1F3A;--teal:#0D9488;--teal-d:#0B7A75;--teal-l:#CCFBF1;
+      --surface:#F1F4F9;--card:#FFFFFF;--muted:#F8FAFC;
+      --border:#E5E7EB;--border-s:#D1D5DB;--focus:#0D9488;
+      --text:#111827;--text-s:#4B5563;--text-m:#9CA3AF;
+      --success-bg:#F0FDF4;--success-border:#BBF7D0;--success-text:#15803D;
+      --error-bg:#FFF5F5;--error-border:#FEE2E2;--error-text:#B91C1C;
+      --warn-bg:#FFFBEB;--warn-border:#FEF3C7;--warn-text:#B45309;
+      --radius-sm:6px;--radius-md:8px;--radius-lg:12px;--radius-xl:16px;
+      --font:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;
+      --shadow-sm:0 1px 3px rgba(0,0,0,0.04),0 2px 6px rgba(0,0,0,0.04);
+      --shadow-md:0 4px 12px rgba(0,0,0,0.08);
+    }
+    html{font-size:14px;-webkit-font-smoothing:antialiased}
+    body{font-family:var(--font);background:var(--surface);color:var(--text);min-height:100vh;padding:32px 16px 64px}
+
+    .page-header{text-align:center;margin-bottom:32px}
+    .page-logo{width:44px;height:44px;background:var(--teal);border-radius:var(--radius-md);
+      display:flex;align-items:center;justify-content:center;margin:0 auto 14px}
+    .page-logo svg{width:22px;height:22px;color:#fff}
+    .page-title{font-size:22px;font-weight:700;color:var(--navy);line-height:1.2}
+    .page-sub{font-size:14px;color:var(--text-m);margin-top:6px}
+
+    .form-wrapper{max-width:560px;margin:0 auto}
+
+    /* Step: identity verification */
+    .step-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-xl);
+      box-shadow:var(--shadow-sm);overflow:hidden;margin-bottom:16px}
+    .step-header{padding:18px 24px;border-bottom:1px solid var(--border);background:var(--muted);
+      display:flex;align-items:center;gap:12px}
+    .step-num{width:26px;height:26px;border-radius:50%;background:var(--teal);color:#fff;
+      font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .step-label{font-size:14px;font-weight:600;color:var(--navy);flex:1}
+    .step-body{padding:22px 24px}
+
+    .form-group{margin-bottom:18px}
+    .form-group:last-child{margin-bottom:0}
+    .form-label{display:block;font-size:11px;font-weight:700;color:var(--text-s);
+      text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+    .form-label .req{color:var(--error-text);margin-left:2px}
+    .form-input,.form-select{display:block;width:100%;height:40px;border:1px solid var(--border-s);
+      border-radius:var(--radius-md);padding:0 12px;font-size:14px;font-family:var(--font);
+      color:var(--text);background:var(--card);outline:none;
+      transition:border-color .15s,box-shadow .15s}
+    .form-input:focus,.form-select:focus{border-color:var(--focus);box-shadow:0 0 0 3px rgba(13,148,136,.1)}
+    .form-textarea{display:block;width:100%;border:1px solid var(--border-s);border-radius:var(--radius-md);
+      padding:11px 12px;font-size:14px;font-family:var(--font);color:var(--text);
+      background:var(--card);resize:vertical;outline:none;line-height:1.6;
+      transition:border-color .15s,box-shadow .15s}
+    .form-textarea:focus{border-color:var(--focus);box-shadow:0 0 0 3px rgba(13,148,136,.1)}
+    .form-textarea::placeholder,.form-input::placeholder{color:var(--text-m)}
+    .char-count{font-size:11px;color:var(--text-m);text-align:right;margin-top:4px}
+    .char-count.warn{color:var(--warn-text)}.char-count.over{color:var(--error-text)}
+    .input-hint{font-size:12px;color:var(--text-m);margin-top:4px}
+
+    /* Identity confirmed card */
+    .identity-card{background:var(--teal-l);border:1px solid #86EFCA;border-radius:var(--radius-lg);
+      padding:14px 18px;display:flex;align-items:center;gap:12px;margin-bottom:18px}
+    .identity-card svg{width:20px;height:20px;color:var(--teal-d);flex-shrink:0}
+    .identity-name{font-size:14px;font-weight:600;color:#134E4A}
+    .identity-meta{font-size:12px;color:#0F766E;margin-top:2px}
+    .identity-change{font-size:12px;color:var(--teal);cursor:pointer;margin-left:auto;font-weight:500;flex-shrink:0}
+    .identity-change:hover{text-decoration:underline}
+
+    /* Milestone select */
+    .milestone-grid{display:flex;flex-direction:column;gap:8px;margin-top:2px}
+    .ms-option{border:1px solid var(--border);border-radius:var(--radius-md);padding:11px 14px;
+      cursor:pointer;transition:border-color .15s,background .15s;display:flex;align-items:center;gap:10px}
+    .ms-option:hover{border-color:var(--teal);background:var(--teal-l)}
+    .ms-option.selected{border-color:var(--teal);background:var(--teal-l)}
+    .ms-option.selected .ms-check{background:var(--teal)}
+    .ms-option.done{opacity:.55;cursor:not-allowed}
+    .ms-check{width:18px;height:18px;border-radius:50%;border:2px solid var(--border-s);flex-shrink:0;
+      display:flex;align-items:center;justify-content:center;transition:background .15s,border-color .15s}
+    .ms-check svg{width:10px;height:10px;color:#fff;opacity:0}
+    .ms-option.selected .ms-check svg{opacity:1}
+    .ms-option.selected .ms-check{border-color:var(--teal)}
+    .ms-name{font-size:13.5px;font-weight:500;color:var(--text);flex:1}
+    .ms-status{font-size:11px;padding:2px 7px;border-radius:999px;font-weight:600}
+    .ms-status.done{background:#F0FDF4;color:#15803D}
+    .ms-status.active{background:#EFF6FF;color:#1D4ED8}
+    .ms-status.pending{background:#F3F4F6;color:#6B7280}
+
+    /* Submit btn */
+    .submit-btn{width:100%;height:44px;background:var(--teal);border:none;border-radius:var(--radius-md);
+      color:#fff;font-size:15px;font-weight:600;font-family:var(--font);cursor:pointer;
+      transition:background .15s,transform .1s;display:flex;align-items:center;justify-content:center;gap:8px}
+    .submit-btn:hover{background:var(--teal-d)}
+    .submit-btn:active{transform:scale(.98)}
+    .submit-btn:disabled{opacity:.6;cursor:not-allowed}
+    .submit-btn svg{width:16px;height:16px}
+    .verify-btn{width:100%;height:40px;background:var(--navy);border:none;border-radius:var(--radius-md);
+      color:#fff;font-size:14px;font-weight:600;font-family:var(--font);cursor:pointer;
+      transition:background .15s}
+    .verify-btn:hover{background:#163660}
+    .verify-btn:disabled{opacity:.6;cursor:not-allowed}
+
+    /* Message banners */
+    .banner{border-radius:var(--radius-lg);padding:14px 18px;font-size:13.5px;line-height:1.5;
+      display:flex;align-items:flex-start;gap:10px}
+    .banner svg{width:16px;height:16px;flex-shrink:0;margin-top:1px}
+    .banner-success{background:var(--success-bg);border:1px solid var(--success-border);color:var(--success-text)}
+    .banner-error  {background:var(--error-bg);border:1px solid var(--error-border);color:var(--error-text)}
+    .banner-info   {background:#EFF6FF;border:1px solid #BFDBFE;color:#1D4ED8}
+
+    .spinner{width:20px;height:20px;border:2px solid rgba(255,255,255,.35);
+      border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    /* Success screen */
+    .success-screen{text-align:center;padding:48px 24px}
+    .success-icon{width:64px;height:64px;background:var(--success-bg);border:2px solid var(--success-border);
+      border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 20px}
+    .success-icon svg{width:28px;height:28px;color:var(--success-text)}
+    .success-title{font-size:20px;font-weight:700;color:var(--navy);margin-bottom:8px}
+    .success-sub{font-size:14px;color:var(--text-m);max-width:360px;margin:0 auto;line-height:1.6}
+
+    .footer-note{text-align:center;font-size:12px;color:var(--text-m);margin-top:24px;line-height:1.6}
+    .footer-note strong{color:var(--text-s)}
+  </style>
+</head>
+<body>
+
+<div class="page-header">
+  <div class="page-logo">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+  </div>
+  <div class="page-title">Milestone Reflection</div>
+  <div class="page-sub" id="prog-name">MSc Medical Laboratory Science</div>
+</div>
+
+<div class="form-wrapper">
+
+  <!-- STEP 1: Identity verification -->
+  <div class="step-card" id="step-identity">
+    <div class="step-header">
+      <div class="step-num">1</div>
+      <div class="step-label">Verify your identity</div>
+    </div>
+    <div class="step-body">
+      <div id="verify-banner" style="display:none;margin-bottom:16px"></div>
+      <div class="form-group">
+        <label class="form-label">Registration number <span class="req">*</span></label>
+        <input class="form-input" type="text" id="reg-no" placeholder="e.g. 2024MLS001" autocomplete="off">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email address <span class="req">*</span></label>
+        <input class="form-input" type="email" id="student-email" placeholder="your.email@gmu.ac.ae">
+        <div class="input-hint">Enter the email address registered with the program.</div>
+      </div>
+      <button class="verify-btn" id="verify-btn" onclick="verifyIdentity()">
+        Verify my identity
+      </button>
+    </div>
+  </div>
+
+  <!-- STEP 2 & 3: Reflection form (hidden until verified) -->
+  <div id="reflection-form" style="display:none">
+
+    <!-- Identity confirmed banner -->
+    <div class="identity-card" id="identity-confirmed">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+      <div>
+        <div class="identity-name" id="confirmed-name">—</div>
+        <div class="identity-meta" id="confirmed-meta">—</div>
+      </div>
+      <span class="identity-change" onclick="resetForm()">Change</span>
+    </div>
+
+    <!-- Step 2: Select milestone -->
+    <div class="step-card">
+      <div class="step-header">
+        <div class="step-num">2</div>
+        <div class="step-label">Select milestone</div>
+      </div>
+      <div class="step-body">
+        <div class="milestone-grid" id="milestone-grid">
+          <!-- Populated by JS -->
+        </div>
+        <input type="hidden" id="selected-milestone">
+      </div>
+    </div>
+
+    <!-- Step 3: Write reflection -->
+    <div class="step-card">
+      <div class="step-header">
+        <div class="step-num">3</div>
+        <div class="step-label">Write your reflection</div>
+      </div>
+      <div class="step-body">
+        <div id="submit-banner" style="display:none;margin-bottom:16px"></div>
+
+        <div class="form-group">
+          <label class="form-label">Reflection narrative <span class="req">*</span></label>
+          <textarea class="form-textarea" id="reflection-text" rows="6"
+            placeholder="Describe your progress on this milestone. What have you learned? What went well? What would you do differently?"
+            oninput="updateCharCount('reflection-text','reflection-count',100,2000)"></textarea>
+          <div class="char-count" id="reflection-count">Minimum 100 characters</div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Challenges encountered</label>
+          <textarea class="form-textarea" id="challenges" rows="3"
+            placeholder="Describe any obstacles, delays, or difficulties you have encountered."
+            oninput="updateCharCount('challenges','challenges-count',0,1500)"></textarea>
+          <div class="char-count" id="challenges-count"></div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Support needed</label>
+          <textarea class="form-textarea" id="support-needed" rows="3"
+            placeholder="What support do you need from your supervisor or coordinator?"
+            oninput="updateCharCount('support-needed','support-count',0,1500)"></textarea>
+          <div class="char-count" id="support-count"></div>
+        </div>
+
+        <button class="submit-btn" id="submit-btn" onclick="submitReflection()" style="margin-top:8px">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          Submit reflection
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Success screen (hidden) -->
+  <div class="step-card" id="success-screen" style="display:none">
+    <div class="success-screen">
+      <div class="success-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>
+      <div class="success-title">Reflection submitted</div>
+      <div class="success-sub">Your reflection has been recorded and will be reviewed by your supervisor and thesis coordinator. Thank you for submitting on time.</div>
+      <button class="verify-btn" style="max-width:240px;margin:24px auto 0" onclick="submitAnother()">Submit another</button>
+    </div>
+  </div>
+
+  <div class="footer-note">
+    <strong>GMU Thesis Coordination System</strong><br>
+    Your responses are stored securely and shared only with your supervisor and thesis coordinator.
+  </div>
+
+</div>
+
+<script>
+  const State = { regNo: null, studentName: null, email: null, milestones: [] };
+
+  function verifyIdentity() {
+    const regNo = document.getElementById('reg-no').value.trim();
+    const email = document.getElementById('student-email').value.trim();
+    if (!regNo || !email) { showBanner('verify-banner', 'error', 'Please enter both your registration number and email address.'); return; }
+
+    const btn = document.getElementById('verify-btn');
+    btn.disabled = true;
+    btn.textContent = 'Verifying…';
+
+    google.script.run
+      .withSuccessHandler(res => {
+        btn.disabled = false;
+        btn.textContent = 'Verify my identity';
+        if (!res.success) { showBanner('verify-banner', 'error', res.message); return; }
+
+        State.regNo       = res.student.regNo;
+        State.studentName = res.student.name;
+        State.email       = email;
+        State.milestones  = res.student.milestones;
+
+        document.getElementById('confirmed-name').textContent = res.student.name;
+        document.getElementById('confirmed-meta').textContent = `${res.student.regNo} · Supervisor: ${res.student.supervisorName}`;
+        document.getElementById('step-identity').style.display = 'none';
+        document.getElementById('reflection-form').style.display = '';
+        renderMilestones(res.student.milestones);
+      })
+      .withFailureHandler(e => {
+        btn.disabled = false;
+        btn.textContent = 'Verify my identity';
+        showBanner('verify-banner', 'error', 'A connection error occurred. Please try again.');
+      })
+      .FH_lookupStudentForReflection(regNo, email);
+  }
+
+  function renderMilestones(milestones) {
+    const grid = document.getElementById('milestone-grid');
+    const statusClass = { Completed:'done', 'In Progress':'active', Submitted:'active' };
+    const statusLabel = { Completed:'Completed', 'In Progress':'In progress', Submitted:'Submitted',
+                         'Not Started':'', Overdue:'Overdue' };
+    grid.innerHTML = milestones.map((m, i) => {
+      const isDone = m.status === 'Completed';
+      const cls    = isDone ? 'ms-option done' : 'ms-option';
+      const stCls  = statusClass[m.status] || 'pending';
+      const stLbl  = statusLabel[m.status] || '';
+      return `<div class="${cls}" id="ms-opt-${i}" onclick="selectMilestone(${i},'${esc(m.name)}')">
+        <div class="ms-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
+        <span class="ms-name">${esc(m.name)}</span>
+        ${stLbl ? `<span class="ms-status ${stCls}">${stLbl}</span>` : ''}
+      </div>`;
+    }).join('');
+  }
+
+  function selectMilestone(index, name) {
+    document.querySelectorAll('.ms-option').forEach(el => el.classList.remove('selected'));
+    const el = document.getElementById('ms-opt-' + index);
+    if (el && !el.classList.contains('done')) {
+      el.classList.add('selected');
+      document.getElementById('selected-milestone').value = name;
+    }
+  }
+
+  function submitReflection() {
+    const milestone = document.getElementById('selected-milestone').value;
+    const reflection = document.getElementById('reflection-text').value.trim();
+    const challenges = document.getElementById('challenges').value.trim();
+    const support    = document.getElementById('support-needed').value.trim();
+
+    if (!milestone)        { showBanner('submit-banner', 'error', 'Please select a milestone.'); return; }
+    if (!reflection)       { showBanner('submit-banner', 'error', 'Reflection text is required.'); return; }
+    if (reflection.length < 100) { showBanner('submit-banner', 'error', 'Your reflection must be at least 100 characters.'); return; }
+
+    const btn = document.getElementById('submit-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<div class="spinner"></div>';
+
+    google.script.run
+      .withSuccessHandler(res => {
+        btn.disabled = false;
+        btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Submit reflection';
+        if (!res.success) { showBanner('submit-banner', 'error', res.message); return; }
+        document.getElementById('reflection-form').style.display = 'none';
+        document.getElementById('success-screen').style.display = '';
+      })
+      .withFailureHandler(e => {
+        btn.disabled = false;
+        btn.innerHTML = 'Submit reflection';
+        showBanner('submit-banner', 'error', 'A connection error occurred. Please try again.');
+      })
+      .FH_submitReflectionFromPortal({
+        regNo         : State.regNo,
+        studentEmail  : State.email,
+        milestoneName : milestone,
+        reflectionText: reflection,
+        challenges,
+        supportNeeded : support,
+      });
+  }
+
+  function resetForm() {
+    document.getElementById('step-identity').style.display = '';
+    document.getElementById('reflection-form').style.display = 'none';
+    State.regNo = null; State.studentName = null; State.email = null;
+  }
+
+  function submitAnother() {
+    document.getElementById('success-screen').style.display = 'none';
+    document.getElementById('step-identity').style.display = '';
+    document.getElementById('reg-no').value = '';
+    document.getElementById('student-email').value = '';
+    State.regNo = null;
+  }
+
+  function showBanner(containerId, type, msg) {
+    const icons = {
+      success: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>',
+      error  : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>',
+      info   : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>',
+    };
+    const el = document.getElementById(containerId);
+    el.style.display = '';
+    el.innerHTML = `<div class="banner banner-${type}">${icons[type]||''}<span>${esc(msg)}</span></div>`;
+  }
+
+  function updateCharCount(textareaId, countId, min, max) {
+    const len = document.getElementById(textareaId).value.length;
+    const el  = document.getElementById(countId);
+    el.className = 'char-count' + (len > max ? ' over' : len < min && len > 0 ? ' warn' : '');
+    if (min > 0) el.textContent = len < min ? `${min - len} more characters needed` : `${len} / ${max} characters`;
+    else el.textContent = len > 0 ? `${len} / ${max} characters` : '';
+  }
+
+  function esc(s) {
+    return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  google.script.run
+    .withSuccessHandler(d => { if(d && d.programName) document.getElementById('prog-name').textContent = d.programName; })
+    .API_getSystemStats();
+</script>
+</body>
+</html>

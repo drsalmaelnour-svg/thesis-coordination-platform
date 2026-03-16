@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reports — Thesis Coordination</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --navy:#0B1F3A;--teal:#0D9488;--teal-d:#0B7A75;--teal-l:#CCFBF1;
+      --surface:#F1F4F9;--card:#FFFFFF;--muted:#F8FAFC;
+      --border:#E5E7EB;--border-s:#D1D5DB;--focus:#0D9488;
+      --text:#111827;--text-s:#4B5563;--text-m:#9CA3AF;
+      --green:#15803D;--green-bg:#F0FDF4;--green-b:#BBF7D0;
+      --amber:#B45309;--amber-bg:#FFFBEB;--amber-b:#FEF3C7;
+      --red:#B91C1C;--red-bg:#FFF5F5;--red-b:#FEE2E2;
+      --blue:#1D4ED8;--blue-bg:#EFF6FF;--blue-b:#BFDBFE;
+      --purple:#6D28D9;--purple-bg:#F5F3FF;--purple-b:#DDD6FE;
+      --radius-sm:6px;--radius-md:8px;--radius-lg:12px;--radius-xl:16px;
+      --font:'Inter',-apple-system,sans-serif;
+      --shadow-sm:0 1px 3px rgba(0,0,0,0.04),0 2px 6px rgba(0,0,0,0.04);
+      --shadow-md:0 4px 14px rgba(0,0,0,0.08);
+    }
+    html{font-size:14px;-webkit-font-smoothing:antialiased}
+    body{font-family:var(--font);background:var(--surface);color:var(--text);min-height:100vh;overflow-y:auto}
+
+    /* Top navigation */
+    .rpt-nav{background:var(--navy);padding:0 28px;height:56px;display:flex;align-items:center;gap:14px;
+      position:sticky;top:0;z-index:20}
+    .rpt-nav-logo{width:28px;height:28px;background:var(--teal);border-radius:6px;
+      display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .rpt-nav-logo svg{width:14px;height:14px;color:#fff}
+    .rpt-nav-title{font-size:13px;font-weight:600;color:#fff}
+    .rpt-nav-back{display:flex;align-items:center;gap:5px;font-size:12px;color:rgba(255,255,255,.5);
+      cursor:pointer;margin-left:auto;transition:color .15s}
+    .rpt-nav-back:hover{color:rgba(255,255,255,.8)}
+    .rpt-nav-back svg{width:13px;height:13px}
+
+    .rpt-body{padding:24px 28px;max-width:1100px;margin:0 auto}
+
+    /* Page title row */
+    .page-row{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:22px;flex-wrap:wrap;gap:12px}
+    .page-title{font-size:20px;font-weight:700;color:var(--navy)}
+    .page-sub{font-size:13px;color:var(--text-m);margin-top:4px}
+    .rpt-controls{display:flex;gap:8px;align-items:center}
+    .window-select{height:30px;border:1px solid var(--border-s);border-radius:var(--radius-sm);
+      padding:0 24px 0 9px;font-size:12.5px;font-family:var(--font);color:var(--text);
+      background:var(--card) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%239CA3AF' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 7px center;
+      -webkit-appearance:none;outline:none;cursor:pointer}
+    .btn{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 12px;
+      border-radius:var(--radius-sm);font-size:12.5px;font-weight:500;font-family:var(--font);
+      cursor:pointer;border:1px solid transparent;transition:background .12s,border-color .12s}
+    .btn svg{width:12px;height:12px}
+    .btn-secondary{background:var(--card);color:var(--text-s);border-color:var(--border-s)}
+    .btn-secondary:hover{background:var(--muted);color:var(--text)}
+    .btn-primary{background:var(--teal);color:#fff;border-color:var(--teal-d)}
+    .btn-primary:hover{background:var(--teal-d)}
+
+    /* Section title */
+    .sec-title{font-size:14px;font-weight:600;color:var(--navy);margin-bottom:14px;margin-top:24px}
+    .sec-title:first-child{margin-top:0}
+
+    /* Summary health cards */
+    .health-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:24px}
+    .health-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);
+      padding:16px;box-shadow:var(--shadow-sm);position:relative;overflow:hidden}
+    .health-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:var(--radius-lg) var(--radius-lg) 0 0}
+    .hc-t::before{background:var(--teal)}.hc-g::before{background:var(--green)}
+    .hc-r::before{background:var(--red)}.hc-a::before{background:var(--amber)}
+    .hc-p::before{background:var(--purple)}
+    .hc-icon{width:32px;height:32px;border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;margin-bottom:10px}
+    .hc-icon svg{width:15px;height:15px}
+    .hc-t .hc-icon{background:var(--teal-l);color:var(--teal-d)}
+    .hc-g .hc-icon{background:var(--green-bg);color:var(--green)}
+    .hc-r .hc-icon{background:var(--red-bg);color:var(--red)}
+    .hc-a .hc-icon{background:var(--amber-bg);color:var(--amber)}
+    .hc-p .hc-icon{background:var(--purple-bg);color:var(--purple)}
+    .hc-label{font-size:10.5px;font-weight:700;color:var(--text-m);text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px}
+    .hc-value{font-size:26px;font-weight:700;color:var(--text);line-height:1;letter-spacing:-.02em}
+    .hc-sub{font-size:11px;color:var(--text-m);margin-top:5px}
+
+    /* Two-column grid */
+    .two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+    .three-col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px}
+
+    /* Report card */
+    .rcard{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);
+      box-shadow:var(--shadow-sm);overflow:hidden}
+    .rcard-hdr{padding:12px 16px;border-bottom:1px solid var(--border);background:var(--muted);
+      display:flex;align-items:center;gap:8px}
+    .rcard-hdr-icon{width:22px;height:22px;border-radius:var(--radius-sm);
+      display:flex;align-items:center;justify-content:center}
+    .rcard-hdr-icon svg{width:11px;height:11px}
+    .rcard-title{font-size:12px;font-weight:700;color:var(--text-s);text-transform:uppercase;letter-spacing:.06em;flex:1}
+    .rcard-body{padding:16px}
+
+    /* Stacked bar chart (CSS only) */
+    .bar-row{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+    .bar-row:last-child{margin-bottom:0}
+    .bar-label{font-size:12px;color:var(--text-s);width:140px;flex-shrink:0;
+      overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .bar-track{flex:1;height:8px;background:var(--border);border-radius:999px;overflow:hidden;position:relative}
+    .bar-fill{height:100%;border-radius:999px;transition:width .4s ease}
+    .bar-pct{font-size:11px;color:var(--text-m);width:36px;text-align:right;flex-shrink:0}
+    .bar-teal{background:var(--teal)}.bar-green{background:var(--green)}
+    .bar-amber{background:var(--amber)}.bar-red{background:var(--red)}
+    .bar-blue{background:var(--blue)}.bar-purple{background:var(--purple)}
+
+    /* Donut (CSS only) */
+    .donut-wrap{display:flex;gap:20px;align-items:center}
+    .donut{width:100px;height:100px;flex-shrink:0}
+    .donut-legend{display:flex;flex-direction:column;gap:7px}
+    .donut-item{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--text-s)}
+    .donut-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+
+    /* Data table */
+    .rpt-table{width:100%;border-collapse:collapse;font-size:12.5px}
+    .rpt-table thead tr{border-bottom:2px solid var(--border)}
+    .rpt-table thead th{padding:8px 12px;text-align:left;font-size:10.5px;font-weight:700;
+      color:var(--text-m);letter-spacing:.06em;text-transform:uppercase;white-space:nowrap}
+    .rpt-table tbody tr{border-bottom:1px solid var(--border);transition:background .1s}
+    .rpt-table tbody tr:hover{background:var(--muted)}
+    .rpt-table tbody tr:last-child{border-bottom:none}
+    .rpt-table tbody td{padding:9px 12px;vertical-align:middle}
+    .rpt-table .num{text-align:right;font-variant-numeric:tabular-nums}
+
+    /* Chips */
+    .chip{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;
+      font-size:11px;font-weight:600}
+    .ch-g{background:var(--green-bg);color:var(--green)}
+    .ch-a{background:var(--amber-bg);color:var(--amber)}
+    .ch-r{background:var(--red-bg);color:var(--red)}
+    .ch-b{background:var(--blue-bg);color:var(--blue)}
+    .ch-n{background:#F3F4F6;color:#6B7280}
+
+    /* Progress mini */
+    .pbar-mini{height:4px;background:var(--border);border-radius:999px;overflow:hidden;min-width:60px}
+    .pbar-mini-fill{height:100%;border-radius:999px}
+    .pm-t{background:var(--teal)}.pm-g{background:var(--green)}
+    .pm-a{background:var(--amber)}.pm-r{background:var(--red)}
+
+    /* Audit log table */
+    .audit-row-success{}.audit-row-failed td{color:var(--red)}.audit-row-denied td{color:var(--amber)}
+
+    /* Empty state */
+    .empty{display:flex;flex-direction:column;align-items:center;padding:32px;text-align:center;color:var(--text-m)}
+    .empty svg{width:28px;height:28px;margin-bottom:10px;color:var(--border-s)}
+    .empty-title{font-size:13px;font-weight:600;color:var(--text-s);margin-bottom:4px}
+    .empty p{font-size:12px;max-width:220px}
+
+    /* Loading */
+    .spinner{width:24px;height:24px;border:2px solid var(--border);border-top-color:var(--teal);
+      border-radius:50%;animation:spin .6s linear infinite;margin:32px auto}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    /* Timeline chart (simple line via div heights) */
+    .timeline-chart{display:flex;align-items:flex-end;gap:4px;height:80px;padding:4px 0}
+    .tl-bar{flex:1;background:var(--teal);border-radius:2px 2px 0 0;min-height:2px;
+      transition:height .3s ease;cursor:help;position:relative}
+    .tl-bar:hover::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 4px);left:50%;
+      transform:translateX(-50%);background:var(--navy);color:#fff;font-size:10px;
+      padding:3px 7px;border-radius:4px;white-space:nowrap;pointer-events:none}
+
+    @media(max-width:900px){
+      .health-grid{grid-template-columns:repeat(2,1fr)}
+      .two-col,.three-col{grid-template-columns:1fr}
+      .rpt-body{padding:16px}
+    }
+    @media(max-width:700px){.health-grid{grid-template-columns:1fr 1fr}}
+  </style>
+</head>
+<body>
+
+<div class="rpt-nav">
+  <div class="rpt-nav-logo">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+  </div>
+  <span class="rpt-nav-title">Reports &amp; Analytics</span>
+  <div class="rpt-nav-back" onclick="goBack()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+    Back to dashboard
+  </div>
+</div>
+
+<div class="rpt-body">
+
+  <div class="page-row">
+    <div>
+      <div class="page-title">Program reports &amp; analytics</div>
+      <div class="page-sub" id="rpt-sub">Loading…</div>
+    </div>
+    <div class="rpt-controls">
+      <select class="window-select" id="window-select" onchange="reload()">
+        <option value="30">Last 30 days</option>
+        <option value="60">Last 60 days</option>
+        <option value="90" selected>Last 90 days</option>
+        <option value="180">Last 6 months</option>
+        <option value="365">Last year</option>
+      </select>
+      <button class="btn btn-secondary" onclick="exportReports()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Export to sheet
+      </button>
+      <button class="btn btn-primary" onclick="reload()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+        Refresh
+      </button>
+    </div>
+  </div>
+
+  <!-- Loading state -->
+  <div id="loading-state"><div class="spinner"></div></div>
+
+  <!-- Content (hidden until loaded) -->
+  <div id="report-content" style="display:none">
+
+    <!-- ══ COHORT HEALTH CARDS ══ -->
+    <div class="health-grid" id="health-grid"></div>
+
+    <!-- ══ ROW 1: Risk + Progress histogram ══ -->
+    <div class="two-col">
+      <div class="rcard">
+        <div class="rcard-hdr">
+          <div class="rcard-hdr-icon" style="background:var(--red-bg);color:var(--red)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
+          </div>
+          <span class="rcard-title">Risk distribution</span>
+        </div>
+        <div class="rcard-body" id="risk-dist-body"></div>
+      </div>
+      <div class="rcard">
+        <div class="rcard-hdr">
+          <div class="rcard-hdr-icon" style="background:var(--teal-l);color:var(--teal-d)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+          </div>
+          <span class="rcard-title">Progress distribution</span>
+        </div>
+        <div class="rcard-body" id="progress-hist-body"></div>
+      </div>
+    </div>
+
+    <!-- ══ ROW 2: Milestone completion + Reflection completion ══ -->
+    <div class="two-col">
+      <div class="rcard">
+        <div class="rcard-hdr">
+          <div class="rcard-hdr-icon" style="background:var(--green-bg);color:var(--green)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/></svg>
+          </div>
+          <span class="rcard-title">Milestone completion rates</span>
+        </div>
+        <div class="rcard-body" id="ms-dist-body"></div>
+      </div>
+      <div class="rcard">
+        <div class="rcard-hdr">
+          <div class="rcard-hdr-icon" style="background:var(--blue-bg);color:var(--blue)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          </div>
+          <span class="rcard-title">Reflection submission rates</span>
+        </div>
+        <div class="rcard-body" id="refl-body"></div>
+      </div>
+    </div>
+
+    <!-- ══ ROW 3: Milestone completions timeline + Feedback completion ══ -->
+    <div class="two-col">
+      <div class="rcard">
+        <div class="rcard-hdr">
+          <div class="rcard-hdr-icon" style="background:var(--purple-bg);color:var(--purple)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          </div>
+          <span class="rcard-title">Milestone completions over time</span>
+        </div>
+        <div class="rcard-body" id="timeline-body"></div>
+      </div>
+      <div class="rcard">
+        <div class="rcard-hdr">
+          <div class="rcard-hdr-icon" style="background:var(--amber-bg);color:var(--amber)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/></svg>
+          </div>
+          <span class="rcard-title">Supervisor feedback completion</span>
+        </div>
+        <div class="rcard-body" id="feedback-body"></div>
+      </div>
+    </div>
+
+    <!-- ══ SUPERVISOR ACTIVITY TABLE ══ -->
+    <div class="rcard" style="margin-bottom:16px">
+      <div class="rcard-hdr">
+        <div class="rcard-hdr-icon" style="background:var(--blue-bg);color:var(--blue)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        </div>
+        <span class="rcard-title">Supervisor activity overview</span>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="rpt-table" id="supervisor-table">
+          <thead><tr>
+            <th>Supervisor</th><th>Students</th><th>Feedback submissions</th>
+            <th>Avg / student</th><th>At-risk students</th>
+          </tr></thead>
+          <tbody id="supervisor-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ══ INTERVENTION LIST ══ -->
+    <div class="rcard" style="margin-bottom:16px">
+      <div class="rcard-hdr">
+        <div class="rcard-hdr-icon" style="background:var(--red-bg);color:var(--red)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        </div>
+        <span class="rcard-title">Students requiring intervention</span>
+        <span id="intervention-count" style="font-size:11px;color:var(--text-m)"></span>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="rpt-table" id="intervention-table">
+          <thead><tr>
+            <th>Student</th><th>Supervisor</th><th>Risk level</th>
+            <th>Score</th><th>Top factors</th>
+          </tr></thead>
+          <tbody id="intervention-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ══ AUDIT LOG ══ -->
+    <div class="rcard" id="audit-card" style="margin-bottom:16px">
+      <div class="rcard-hdr">
+        <div class="rcard-hdr-icon" style="background:var(--muted);color:var(--text-m)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        </div>
+        <span class="rcard-title">System audit log</span>
+        <span style="font-size:11px;color:var(--text-m);margin-left:auto">Last 50 events</span>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="rpt-table" id="audit-table">
+          <thead><tr>
+            <th>Time</th><th>User</th><th>Role</th><th>Action</th><th>Student</th><th>Details</th><th>Status</th>
+          </tr></thead>
+          <tbody id="audit-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div><!-- /report-content -->
+
+</div>
+
+<script>
+let Data = {};
+
+function reload() {
+  const days = parseInt(document.getElementById('window-select').value) || 90;
+  document.getElementById('loading-state').style.display = '';
+  document.getElementById('report-content').style.display = 'none';
+  google.script.run
+    .withSuccessHandler(d => { Data = d; render(d); })
+    .withFailureHandler(e => alert('Failed to load: ' + e.message))
+    .API_getAnalytics(days);
+}
+
+function render(d) {
+  document.getElementById('rpt-sub').textContent =
+    `${d.cohortHealth?.totalActive || 0} active students · Generated ${new Date(d.generatedAt).toLocaleString()}`;
+  renderHealthCards(d.cohortHealth);
+  renderRiskDist(d.riskDistribution);
+  renderProgressHist(d.progressHistogram);
+  renderMilestoneDist(d.milestoneDistribution);
+  renderReflection(d.reflectionCompletion);
+  renderTimeline(d.milestoneTimeline);
+  renderFeedback(d.feedbackCompletion);
+  renderSupervisors(d.supervisorActivity);
+  loadIntervention();
+  loadAuditLog();
+  document.getElementById('loading-state').style.display = 'none';
+  document.getElementById('report-content').style.display = '';
+}
+
+function renderHealthCards(h) {
+  if (!h) return;
+  document.getElementById('health-grid').innerHTML = [
+    { cls:'hc-t', icon:'<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>', label:'Active students', val:h.totalActive, sub:`Avg progress: ${h.avgProgress}%` },
+    { cls:'hc-g', icon:'<polyline points="20 6 9 17 4 12"/>', label:'On track', val:h.onTrack, sub:`${h.msCompletionRate}% milestones done` },
+    { cls:'hc-r', icon:'<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>', label:'At risk', val:h.atRisk, sub:`${h.monitoring} monitoring` },
+    { cls:'hc-a', icon:'<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>', label:'Overdue milestones', val:h.msOverdue, sub:`of ${h.msTotal} total` },
+  ].map(c => `<div class="health-card ${c.cls}">
+    <div class="hc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${c.icon}</svg></div>
+    <div class="hc-label">${c.label}</div>
+    <div class="hc-value">${c.val ?? '—'}</div>
+    <div class="hc-sub">${c.sub}</div>
+  </div>`).join('');
+}
+
+function renderRiskDist(dist) {
+  if (!dist || !dist.length) { emptyState('risk-dist-body', 'No risk data'); return; }
+  const colors = {'🔴 At Risk':'bar-red','🟡 Monitor':'bar-amber','🟢 On Track':'bar-teal','✅ Completed':'bar-green','⚫ Inactive':'#999'};
+  const labels = {'🔴 At Risk':'At risk','🟡 Monitor':'Monitor','🟢 On Track':'On track','✅ Completed':'Completed','⚫ Inactive':'Inactive'};
+  const max = Math.max(...dist.map(d => d.count), 1);
+  document.getElementById('risk-dist-body').innerHTML = dist
+    .filter(d => d.count > 0)
+    .map(d => `<div class="bar-row">
+      <span class="bar-label">${esc(labels[d.flag] || d.flag)}</span>
+      <div class="bar-track"><div class="bar-fill ${colors[d.flag]||'bar-teal'}" style="width:${Math.round(d.count/max*100)}%"></div></div>
+      <span class="bar-pct">${d.count}</span>
+    </div>`).join('');
+}
+
+function renderProgressHist(hist) {
+  if (!hist || !hist.length) { emptyState('progress-hist-body', 'No progress data'); return; }
+  const max = Math.max(...hist.map(h => h.count), 1);
+  document.getElementById('progress-hist-body').innerHTML = hist.map(h => `
+    <div class="bar-row">
+      <span class="bar-label">${esc(h.label)}</span>
+      <div class="bar-track"><div class="bar-fill bar-teal" style="width:${Math.round(h.count/max*100)}%"></div></div>
+      <span class="bar-pct">${h.count}</span>
+    </div>`).join('');
+}
+
+function renderMilestoneDist(dist) {
+  if (!dist || !dist.length) { emptyState('ms-dist-body', 'No milestone data'); return; }
+  document.getElementById('ms-dist-body').innerHTML = dist.map(m => `
+    <div class="bar-row">
+      <span class="bar-label" title="${esc(m.name)}">${esc(m.name.split(' ').slice(0,2).join(' '))}</span>
+      <div class="bar-track" title="${m.completionRate}% completed">
+        <div class="bar-fill bar-teal" style="width:${m.completionRate}%"></div>
+      </div>
+      <span class="bar-pct">${m.completionRate}%</span>
+    </div>`).join('');
+}
+
+function renderReflection(data) {
+  if (!data || !data.length) { emptyState('refl-body', 'No reflection data'); return; }
+  document.getElementById('refl-body').innerHTML = data.map(r => `
+    <div class="bar-row">
+      <span class="bar-label" title="${esc(r.milestoneName)}">${esc(r.milestoneName.split(' ').slice(0,2).join(' '))}</span>
+      <div class="bar-track" title="${r.submitted} of ${r.total} submitted">
+        <div class="bar-fill bar-blue" style="width:${r.completionRate}%"></div>
+      </div>
+      <span class="bar-pct">${r.completionRate}%</span>
+    </div>`).join('');
+}
+
+function renderTimeline(weeks) {
+  if (!weeks || !weeks.length) { emptyState('timeline-body', 'No timeline data'); return; }
+  const max = Math.max(...weeks.map(w => w.count), 1);
+  const bars = weeks.map(w => {
+    const h = Math.round((w.count / max) * 72);
+    return `<div class="tl-bar" style="height:${Math.max(h,2)}px" data-tip="${w.week}: ${w.count} completions"></div>`;
+  }).join('');
+  document.getElementById('timeline-body').innerHTML = `<div class="timeline-chart">${bars}</div>
+    <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:10px;color:var(--text-m)">
+      <span>${esc(weeks[0]?.week || '')}</span>
+      <span>${esc(weeks[Math.floor(weeks.length/2)]?.week || '')}</span>
+      <span>${esc(weeks[weeks.length-1]?.week || '')}</span>
+    </div>`;
+}
+
+function renderFeedback(data) {
+  if (!data) { emptyState('feedback-body', 'No feedback data'); return; }
+  const s = data.summary;
+  document.getElementById('feedback-body').innerHTML = `
+    <div class="bar-row" style="margin-bottom:14px">
+      <span class="bar-label">Recent feedback</span>
+      <div class="bar-track"><div class="bar-fill bar-green" style="width:${s.completionRate}%"></div></div>
+      <span class="bar-pct">${s.completionRate}%</span>
+    </div>
+    <div style="font-size:12px;color:var(--text-m);margin-bottom:12px">${s.withRecent} of ${s.total} students have feedback in the last ${getConfig('FEEDBACK_STALE_DAYS')||21} days</div>
+    ${(data.bySupervisor||[]).slice(0,6).map(sv => `
+    <div class="bar-row">
+      <span class="bar-label" title="${esc(sv.name)}">${esc(sv.name.split(' ').slice(-1)[0])}</span>
+      <div class="bar-track"><div class="bar-fill ${sv.rate >= 80 ? 'bar-green' : sv.rate >= 50 ? 'bar-teal' : 'bar-amber'}" style="width:${sv.rate}%"></div></div>
+      <span class="bar-pct">${sv.rate}%</span>
+    </div>`).join('')}`;
+}
+
+function renderSupervisors(data) {
+  if (!data || !data.length) {
+    document.getElementById('supervisor-tbody').innerHTML = `<tr><td colspan="5"><div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg><div class="empty-title">No supervisor data</div></div></td></tr>`;
+    return;
+  }
+  document.getElementById('supervisor-tbody').innerHTML = data.map(sv => `
+    <tr>
+      <td>${esc(sv.name)}</td>
+      <td class="num">${sv.studentCount}</td>
+      <td class="num">${sv.feedbackCount}</td>
+      <td class="num">${sv.avgFeedbackPerStudent}</td>
+      <td class="num">${sv.atRiskStudents > 0 ? `<span class="chip ch-r">${sv.atRiskStudents}</span>` : '—'}</td>
+    </tr>`).join('');
+}
+
+function loadIntervention() {
+  google.script.run
+    .withSuccessHandler(d => {
+      document.getElementById('intervention-count').textContent = `${d.total || 0} students`;
+      if (!d.students || !d.students.length) {
+        document.getElementById('intervention-tbody').innerHTML = `<tr><td colspan="5"><div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="20 6 9 17 4 12"/></svg><div class="empty-title">No students require intervention</div></div></td></tr>`;
+        return;
+      }
+      const levelChip = l => ({HIGH:`<span class="chip ch-r">High</span>`,MODERATE:`<span class="chip ch-a">Moderate</span>`}[l]||`<span class="chip ch-n">${esc(l)}</span>`);
+      document.getElementById('intervention-tbody').innerHTML = d.students.map(s => `
+        <tr>
+          <td><strong>${esc(s.name)}</strong><br><span style="font-size:10.5px;color:var(--text-m)">${esc(s.regNo)}</span></td>
+          <td>${esc(s.supervisorName)}</td>
+          <td>${levelChip(s.riskLevel)}</td>
+          <td class="num">${s.score}</td>
+          <td style="font-size:11.5px;color:var(--text-s)">${esc((s.topFactors||[]).join('; '))}</td>
+        </tr>`).join('');
+    })
+    .API_getInterventionList();
+}
+
+function loadAuditLog() {
+  google.script.run
+    .withSuccessHandler(events => {
+      if (!events || !events.length) {
+        document.getElementById('audit-tbody').innerHTML = '<tr><td colspan="7" style="padding:24px;text-align:center;color:var(--text-m)">No audit events recorded.</td></tr>';
+        return;
+      }
+      const statusClass = {'SUCCESS':'audit-row-success','FAILED':'audit-row-failed','DENIED':'audit-row-denied'};
+      document.getElementById('audit-tbody').innerHTML = events.slice(0,50).map(e => `
+        <tr class="${statusClass[e.status]||''}">
+          <td style="white-space:nowrap;font-size:11px">${esc(new Date(e.timestamp).toLocaleString())}</td>
+          <td style="font-size:11.5px">${esc(e.userEmail)}</td>
+          <td><span class="chip ch-n" style="font-size:10px">${esc(e.userRole)}</span></td>
+          <td style="font-size:11.5px;white-space:nowrap">${esc(e.action)}</td>
+          <td style="font-size:11px;font-family:monospace">${esc(e.targetRegNo)}</td>
+          <td style="font-size:11.5px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(e.details)}">${esc(e.details)}</td>
+          <td><span class="chip ${e.status==='SUCCESS'?'ch-g':e.status==='DENIED'?'ch-a':'ch-r'}" style="font-size:10px">${esc(e.status)}</span></td>
+        </tr>`).join('');
+    })
+    .withFailureHandler(() => {})
+    .API_getAuditLog();
+}
+
+function exportReports() {
+  google.script.run
+    .withSuccessHandler(() => alert('Reports written to REPORTS sheet.'))
+    .withFailureHandler(e => alert('Export failed: ' + e.message))
+    .generateBulkReports();
+}
+
+function goBack() {
+  google.script.run
+    .withSuccessHandler(url => { if(url) window.location.href = url; })
+    .getWebAppUrl();
+}
+
+function emptyState(id, msg) {
+  document.getElementById(id).innerHTML = `<div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><div class="empty-title">${esc(msg)}</div></div>`;
+}
+
+function getConfig(k) { return ''; } // placeholder
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+document.addEventListener('DOMContentLoaded', reload);
+</script>
+</body>
+</html>
