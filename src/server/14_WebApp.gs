@@ -11,7 +11,7 @@ function doGet(e) {
     const ctx = UC_getUserContext();
     if (ctx.role !== ROLES.COORDINATOR && ctx.role !== ROLES.ADMIN) {
       return HtmlService.createHtmlOutput(
-        `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+        `<!DOCTYPE html><html><head><meta charset="utf-8">
         <title>Access Restricted</title></head>
         <body style="font-family:-apple-system,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#F1F4F9;margin:0">
           <div style="text-align:center;background:#fff;border:1px solid #E5E7EB;border-radius:12px;padding:40px 32px;max-width:380px">
@@ -25,7 +25,7 @@ function doGet(e) {
         </body></html>`
       ).setTitle('Access Restricted');
     }
-    AL_logEvent({ action: AUDIT_ACTIONS.USER_CONTEXT_RESOLVED, details: `page:${page}`, userCtx: ctx });
+    AL_logEvent({ action: AUDIT_ACTIONS.USER_CONTEXT_RESOLVED, details: 'page:' + page, userCtx: ctx });
   }
 
   const pageMap = {
@@ -36,27 +36,27 @@ function doGet(e) {
   };
 
   const templateName = pageMap[page] || 'Dashboard';
-  const template     = HtmlService.createTemplateFromFile(templateName);
-  template.page      = page;
-  template.baseUrl   = ScriptApp.getService().getUrl();
+  const tmpl         = HtmlService.createTemplateFromFile('client/' + templateName);
+  tmpl.page          = page;
+  tmpl.baseUrl       = ScriptApp.getService().getUrl();
 
-  const institution = getConfig('INSTITUTION') || 'GMU';
-  const program     = getConfig('PROGRAM_NAME') || 'MSc MLS';
-  const pageTitles  = {
-    Dashboard       : `Thesis Coordination — ${institution}`,
-    ReflectionForm  : `Submit Reflection — ${program}`,
-    SupervisorPortal: `Supervisor Portal — ${program}`,
-    Reports         : `Reports — ${program}`,
+  const institution  = getConfig('INSTITUTION') || 'GMU';
+  const program      = getConfig('PROGRAM_NAME') || 'MSc MLS';
+  const pageTitles   = {
+    Dashboard       : 'Thesis Coordination — ' + institution,
+    ReflectionForm  : 'Submit Reflection — ' + program,
+    SupervisorPortal: 'Supervisor Portal — ' + program,
+    Reports         : 'Reports — ' + program,
   };
 
-  return template.evaluate()
+  return tmpl.evaluate()
     .setTitle(pageTitles[templateName] || 'Thesis System')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
     .addMetaTag('viewport', 'width=device-width, initial-scale=1.0');
 }
 
 function include(filename) {
-  return HtmlService.createHtmlOutputFromFile(filename).getContent();
+  return HtmlService.createHtmlOutputFromFile('client/' + filename).getContent();
 }
 
 function getWebAppUrl() {
@@ -72,7 +72,7 @@ function API_getDashboardData() {
 function API_getStudentProfile(regNo) {
   try {
     const profile = DS_getStudentProfile(regNo);
-    if (!profile) return { error: `Student not found: ${regNo}` };
+    if (!profile) return { error: 'Student not found: ' + regNo };
     profile.riskReport = RE_getStudentRiskReport(regNo);
     return profile;
   } catch (e) { return { error: e.message }; }
@@ -87,7 +87,7 @@ function API_updateMilestoneStatus(regNo, milestoneName, newStatus, notes) {
       DS_updateStudentField(regNo, COL.STUDENTS.RISK_FLAG, riskReport.riskFlag);
     }
     AL_logEvent({ action: AUDIT_ACTIONS.MILESTONE_STATUS_UPDATED, targetRegNo: regNo,
-      details: `${milestoneName} → ${newStatus}` });
+      details: milestoneName + ' → ' + newStatus });
     return { success: true, riskFlag: riskReport.riskFlag };
   } catch (e) { return { error: e.message }; }
 }
@@ -103,7 +103,7 @@ function API_setEnrollmentDate(regNo, enrollmentDateStr) {
 
 function API_addCoordinatorNote(regNo, noteText, category) {
   try {
-    if (!noteText?.trim()) return { error: 'Note text is required.' };
+    if (!noteText || !noteText.trim()) return { error: 'Note text is required.' };
     DS_addCoordinatorNote(regNo, noteText, category || 'General');
     AL_logEvent({ action: AUDIT_ACTIONS.COORDINATOR_NOTE_ADDED, targetRegNo: regNo,
       details: truncate(noteText, 100) });
@@ -122,20 +122,20 @@ function API_sendEmailToStudent(regNo, subject, bodyHtml) {
   try {
     if (!subject || !bodyHtml) return { error: 'Subject and body are required.' };
     const success = AUTO_sendIndividualEmail(regNo, subject, bodyHtml);
-    return { success };
+    return { success: success };
   } catch (e) { return { error: e.message }; }
 }
 
 function API_sendORCIDRequest(regNo) {
   try {
-    const student  = DS_getStudent(regNo);
-    if (!student) return { error: `Student not found: ${regNo}` };
-    const formUrl  = getConfig('ORCID_FORM_URL');
-    const subject  = `Action required: Submit your ORCID iD — ${getConfig('PROGRAM_NAME')}`;
-    const body     = EMAIL_buildORCIDRequestBody(student, formUrl);
-    const success  = EMAIL_send(student.studentEmail, subject, body);
+    const student = DS_getStudent(regNo);
+    if (!student) return { error: 'Student not found: ' + regNo };
+    const formUrl = getConfig('ORCID_FORM_URL');
+    const subject = 'Action required: Submit your ORCID iD — ' + getConfig('PROGRAM_NAME');
+    const body    = EMAIL_buildORCIDRequestBody(student, formUrl);
+    const success = EMAIL_send(student.studentEmail, subject, body);
     if (success) DS_logEmail(student.studentEmail, student.studentName, 'ORCID_REQUEST', subject, 'Sent', 'Coordinator');
-    return { success };
+    return { success: success };
   } catch (e) { return { error: e.message }; }
 }
 
@@ -161,9 +161,9 @@ function API_rebuildDashboard() {
 
 function API_getSystemStats() {
   try {
-    const students  = DS_getAllStudents();
-    const active    = students.filter(s => s.status === STUDENT_STATUS.ACTIVE).length;
-    const triggers  = ScriptApp.getProjectTriggers().map(t => t.getHandlerFunction());
+    const students = DS_getAllStudents();
+    const active   = students.filter(s => s.status === STUDENT_STATUS.ACTIVE).length;
+    const triggers = ScriptApp.getProjectTriggers().map(t => t.getHandlerFunction());
     return {
       programName       : getConfig('PROGRAM_NAME'),
       institution       : getConfig('INSTITUTION'),
@@ -182,7 +182,7 @@ function API_getSystemStats() {
 function API_runRiskScan() {
   try {
     const result = RE_runFullRiskScan();
-    return { success: true, ...result };
+    return { success: true, evaluated: result.evaluated, changed: result.changed, highRisk: result.highRisk };
   } catch (e) { return { error: e.message }; }
 }
 
